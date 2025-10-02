@@ -115,3 +115,10 @@ Preferred communication style: Simple, everyday language.
   - Implemented staggered table row animations
   - Replaced all emojis with professional icon components
   - Optimized for performance using transform/opacity animations
+  - **Oct 2**: Fixed bot account type response (reply_markup error)
+  - **Oct 2**: Enhanced credential generation to prioritize active credentials and show status
+  - **Oct 2**: Added platform logos to bot responses for keys and credentials
+  - **Oct 2**: Implemented admin management system (owner can add/remove admins)
+  - **Oct 2**: Added settings page for changing username and password
+  - **Oct 2**: Unified data storage - bot and web panel now share same credential files
+  - **Oct 2**: Fixed credential upload functionality in web admin panel
