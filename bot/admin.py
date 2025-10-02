@@ -26,6 +26,7 @@ KEYS_FILE = 'data/keys.json'
 USERS_FILE = 'data/users.json'
 BANNED_FILE = 'data/banned.json'
 GIVEAWAY_FILE = 'data/giveaway.json'
+ADMIN_CREDS_FILE = '../admin_credentials.json'
 
 # Available platforms
 PLATFORMS = ['Netflix', 'Crunchyroll', 'Spotify', 'WWE']
@@ -67,9 +68,40 @@ def save_json(filename, data):
         json.dump(data, f, indent=2)
 
 
+def get_admin_telegram_ids():
+    """Get all admin Telegram IDs from admin_credentials.json"""
+    try:
+        admin_creds = load_json(ADMIN_CREDS_FILE)
+        telegram_ids = []
+        
+        # Get owner's telegram ID
+        owner_id = admin_creds.get('owner', {}).get('telegram_user_id', '')
+        if owner_id and str(owner_id).isdigit():
+            telegram_ids.append(int(owner_id))
+        
+        # Get all admins' telegram IDs
+        for admin in admin_creds.get('admins', []):
+            admin_id = admin.get('telegram_user_id', '')
+            if admin_id and str(admin_id).isdigit():
+                telegram_ids.append(int(admin_id))
+        
+        return telegram_ids
+    except:
+        return []
+
+
 def is_admin(user_id):
     """Check if user is admin"""
-    return user_id in ADMIN_IDS
+    # Check static and environment variable admins
+    if user_id in ADMIN_IDS:
+        return True
+    
+    # Check admin credentials file for telegram IDs
+    telegram_admin_ids = get_admin_telegram_ids()
+    if user_id in telegram_admin_ids:
+        return True
+    
+    return False
 
 
 def generate_key_code(platform):

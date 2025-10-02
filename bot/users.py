@@ -167,7 +167,7 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ], [InlineKeyboardButton("📊 My Stats", callback_data="user_my_stats")],
         [
             InlineKeyboardButton("📢 Channel 1",
-                                 url="https://t.me/PremiumVaultFi*g's"),
+                                 url="https://t.me/PremiumVaultFigs"),
             InlineKeyboardButton("📢 Channel 2",
                                  url="https://t.me/accountvaultportal")
         ],
@@ -176,7 +176,9 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                  url="https://t.me/PremiumVaultBackup"),
             InlineKeyboardButton("📢 Channel 4",
                                  url="https://t.me/PremiumVault")
-        ], [InlineKeyboardButton("❓ Help", callback_data="user_help")]
+        ], 
+        [InlineKeyboardButton("❓ Help", callback_data="user_help")],
+        [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/BEASTSEC")]
     ]
 
     # Check if there's an active giveaway

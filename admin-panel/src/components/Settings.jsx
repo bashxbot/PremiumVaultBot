@@ -1,11 +1,56 @@
-import React, { useState } from 'react'
-import { MdSettings, MdSave, MdPerson, MdLock } from 'react-icons/md'
+import React, { useState, useEffect } from 'react'
+import { MdSettings, MdSave, MdPerson, MdLock, MdTelegram } from 'react-icons/md'
 import './Settings.css'
 
 function Settings({ userRole, username }) {
-  const [formData, setFormData] = useState({ currentPassword: '', newUsername: '', newPassword: '', confirmPassword: '' })
+  const [formData, setFormData] = useState({ currentPassword: '', newUsername: '', newPassword: '', confirmPassword: '', telegramUserId: '' })
+  const [currentTelegramId, setCurrentTelegramId] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    fetchTelegramId()
+  }, [])
+
+  const fetchTelegramId = async () => {
+    try {
+      const response = await fetch('/api/telegram-id')
+      const data = await response.json()
+      if (data.success && data.telegram_user_id) {
+        setCurrentTelegramId(data.telegram_user_id)
+      }
+    } catch (error) {
+      console.error('Error fetching telegram ID:', error)
+    }
+  }
+
+  const handleChangeTelegramId = async (e) => {
+    e.preventDefault()
+    setMessage('')
+    setError('')
+
+    try {
+      const response = await fetch('/api/telegram-id', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegramUserId: formData.telegramUserId
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setMessage('Telegram User ID updated successfully. You can now use the bot as an admin.')
+        setCurrentTelegramId(formData.telegramUserId)
+        setFormData({ ...formData, telegramUserId: '' })
+      } else {
+        setError(data.message || 'Failed to update Telegram User ID')
+      }
+    } catch (error) {
+      setError('Connection error. Please try again.')
+    }
+  }
 
   const handleChangePassword = async (e) => {
     e.preventDefault()
@@ -76,6 +121,29 @@ function Settings({ userRole, username }) {
       <div className="settings-content">
         {message && <div className="success-message">{message}</div>}
         {error && <div className="error-message">{error}</div>}
+
+        <div className="settings-section">
+          <h2><MdTelegram /> Telegram Bot Admin Access</h2>
+          <p className="section-description">
+            Current Telegram User ID: <strong>{currentTelegramId || 'Not set'}</strong>
+          </p>
+          <p className="section-description">
+            Set your Telegram User ID to get admin access in the bot. You can find your ID by messaging <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer">@userinfobot</a> on Telegram.
+          </p>
+          <form onSubmit={handleChangeTelegramId}>
+            <div className="form-group">
+              <label>Telegram User ID</label>
+              <input
+                type="text"
+                value={formData.telegramUserId}
+                onChange={(e) => setFormData({ ...formData, telegramUserId: e.target.value })}
+                required
+                placeholder="Enter your Telegram User ID (e.g., 123456789)"
+              />
+            </div>
+            <button type="submit" className="btn btn-primary"><MdSave /> Save Telegram ID</button>
+          </form>
+        </div>
 
         <div className="settings-section">
           <h2><MdPerson /> Change Username</h2>

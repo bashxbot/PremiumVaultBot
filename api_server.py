@@ -222,6 +222,57 @@ def change_password():
     
     return jsonify({'success': True, 'message': 'Password changed successfully'})
 
+@app.route('/api/telegram-id', methods=['GET'])
+@login_required
+def get_telegram_id():
+    admin_creds = load_json(ADMIN_CREDS_FILE)
+    current_username = session.get('username')
+    current_role = session.get('role')
+    
+    if current_role == 'owner':
+        telegram_id = admin_creds.get('owner', {}).get('telegram_user_id', '')
+    else:
+        telegram_id = ''
+        for admin in admin_creds.get('admins', []):
+            if admin.get('username') == current_username:
+                telegram_id = admin.get('telegram_user_id', '')
+                break
+    
+    return jsonify({'success': True, 'telegram_user_id': telegram_id})
+
+@app.route('/api/telegram-id', methods=['POST'])
+@login_required
+def set_telegram_id():
+    data = request.json
+    telegram_id = data.get('telegramUserId', '').strip()
+    
+    if not telegram_id:
+        return jsonify({'success': False, 'message': 'Telegram User ID is required'}), 400
+    
+    # Validate it's a number
+    if not telegram_id.isdigit():
+        return jsonify({'success': False, 'message': 'Telegram User ID must be a number'}), 400
+    
+    admin_creds = load_json(ADMIN_CREDS_FILE)
+    current_username = session.get('username')
+    current_role = session.get('role')
+    
+    if current_role == 'owner':
+        admin_creds['owner']['telegram_user_id'] = telegram_id
+    else:
+        found = False
+        for admin in admin_creds.get('admins', []):
+            if admin.get('username') == current_username:
+                admin['telegram_user_id'] = telegram_id
+                found = True
+                break
+        if not found:
+            return jsonify({'success': False, 'message': 'User not found'}), 404
+    
+    save_json(ADMIN_CREDS_FILE, admin_creds)
+    
+    return jsonify({'success': True, 'message': 'Telegram User ID updated successfully'})
+
 @app.route('/api/stats')
 @login_required
 def get_stats():
