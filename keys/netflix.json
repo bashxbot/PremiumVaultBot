@@ -59,13 +59,21 @@
     "key": "NETFLIX-Q3LX-BLXP-FEE6",
     "platform": "Netflix",
     "uses": 1,
-    "remaining_uses": 1,
+    "remaining_uses": 0,
     "account_text": "nf",
-    "status": "active",
+    "status": "used",
     "created_at": "2025-10-02T16:29:33.184950",
-    "redeemed_at": null,
-    "redeemed_by": [],
-    "used_by": []
+    "redeemed_at": "2025-10-02T16:29:48.050174",
+    "redeemed_by": [
+      {
+        "user_id": "6562270244",
+        "username": null,
+        "redeemed_at": "2025-10-02T16:29:48.050181"
+      }
+    ],
+    "used_by": [
+      "6562270244"
+    ]
   },
   {
     "key": "NETFLIX-W7G9-1XCL-N77R",

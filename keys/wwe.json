@@ -1,0 +1,22 @@
+[
+  {
+    "key": "WWE-NPLG-QZA8-EMKN",
+    "platform": "WWE",
+    "uses": 1,
+    "remaining_uses": 0,
+    "account_text": "wwe",
+    "status": "used",
+    "created_at": "2025-10-02T16:30:15.478145",
+    "redeemed_at": "2025-10-02T16:30:24.770320",
+    "redeemed_by": [
+      {
+        "user_id": "6562270244",
+        "username": null,
+        "redeemed_at": "2025-10-02T16:30:24.770329"
+      }
+    ],
+    "used_by": [
+      "6562270244"
+    ]
+  }
+]
