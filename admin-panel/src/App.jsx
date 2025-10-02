@@ -5,6 +5,8 @@ import Sidebar from './components/Sidebar'
 import Credentials from './components/Credentials'
 import Keys from './components/Keys'
 import Login from './components/Login'
+import AdminManagement from './components/AdminManagement'
+import Settings from './components/Settings'
 
 function App() {
   const [activeView, setActiveView] = useState({ type: 'credentials', platform: 'netflix' })
@@ -118,8 +120,14 @@ function App() {
       <div className="main-content">
         {activeView.type === 'credentials' ? (
           <Credentials platform={activeView.platform} refreshStats={fetchStats} authenticated={authenticated} />
-        ) : (
+        ) : activeView.type === 'keys' ? (
           <Keys platform={activeView.platform} authenticated={authenticated} />
+        ) : activeView.type === 'admin-management' ? (
+          <AdminManagement />
+        ) : activeView.type === 'settings' ? (
+          <Settings userRole={userRole} username={username} />
+        ) : (
+          <Credentials platform={activeView.platform} refreshStats={fetchStats} authenticated={authenticated} />
         )}
       </div>
     </div>

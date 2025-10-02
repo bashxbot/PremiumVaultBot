@@ -136,6 +136,76 @@ def delete_admin(username):
     
     return jsonify({'success': True, 'message': 'Admin deleted successfully'})
 
+@app.route('/api/change-username', methods=['POST'])
+@login_required
+def change_username():
+    data = request.json
+    new_username = data.get('newUsername')
+    
+    if not new_username:
+        return jsonify({'success': False, 'message': 'New username is required'}), 400
+    
+    admin_creds = load_json(ADMIN_CREDS_FILE)
+    current_username = session.get('username')
+    current_role = session.get('role')
+    
+    # Check if username already exists
+    if admin_creds.get('owner', {}).get('username') == new_username:
+        return jsonify({'success': False, 'message': 'Username already exists'}), 400
+    
+    for admin in admin_creds.get('admins', []):
+        if admin.get('username') == new_username:
+            return jsonify({'success': False, 'message': 'Username already exists'}), 400
+    
+    # Update username based on role
+    if current_role == 'owner':
+        admin_creds['owner']['username'] = new_username
+    else:
+        for admin in admin_creds.get('admins', []):
+            if admin.get('username') == current_username:
+                admin['username'] = new_username
+                break
+    
+    save_json(ADMIN_CREDS_FILE, admin_creds)
+    session['username'] = new_username
+    
+    return jsonify({'success': True, 'message': 'Username changed successfully'})
+
+@app.route('/api/change-password', methods=['POST'])
+@login_required
+def change_password():
+    data = request.json
+    current_password = data.get('currentPassword')
+    new_password = data.get('newPassword')
+    
+    if not current_password or not new_password:
+        return jsonify({'success': False, 'message': 'Current and new passwords are required'}), 400
+    
+    admin_creds = load_json(ADMIN_CREDS_FILE)
+    current_username = session.get('username')
+    current_role = session.get('role')
+    
+    # Verify current password
+    if current_role == 'owner':
+        if admin_creds.get('owner', {}).get('password') != current_password:
+            return jsonify({'success': False, 'message': 'Current password is incorrect'}), 401
+        admin_creds['owner']['password'] = new_password
+    else:
+        found = False
+        for admin in admin_creds.get('admins', []):
+            if admin.get('username') == current_username:
+                if admin.get('password') != current_password:
+                    return jsonify({'success': False, 'message': 'Current password is incorrect'}), 401
+                admin['password'] = new_password
+                found = True
+                break
+        if not found:
+            return jsonify({'success': False, 'message': 'User not found'}), 404
+    
+    save_json(ADMIN_CREDS_FILE, admin_creds)
+    
+    return jsonify({'success': True, 'message': 'Password changed successfully'})
+
 @app.route('/api/stats')
 @login_required
 def get_stats():
@@ -298,68 +368,6 @@ def edit_credential(platform, index):
         return jsonify({'success': True, 'message': 'Credential updated successfully'})
     
     return jsonify({'success': False, 'message': 'Invalid index'}), 400
-
-@app.route('/api/change-password', methods=['POST'])
-@login_required
-def change_password():
-    data = request.json
-    current_password = data.get('currentPassword')
-    new_password = data.get('newPassword')
-    
-    admin_creds = load_json(ADMIN_CREDS_FILE)
-    username = session.get('username')
-    
-    # Check if owner
-    if admin_creds.get('owner', {}).get('username') == username:
-        if admin_creds.get('owner', {}).get('password') != current_password:
-            return jsonify({'success': False, 'message': 'Current password is incorrect'}), 400
-        admin_creds['owner']['password'] = new_password
-    else:
-        # Check admins
-        admin_found = False
-        for admin in admin_creds.get('admins', []):
-            if admin.get('username') == username:
-                if admin.get('password') != current_password:
-                    return jsonify({'success': False, 'message': 'Current password is incorrect'}), 400
-                admin['password'] = new_password
-                admin_found = True
-                break
-        
-        if not admin_found:
-            return jsonify({'success': False, 'message': 'User not found'}), 404
-    
-    save_json(ADMIN_CREDS_FILE, admin_creds)
-    return jsonify({'success': True, 'message': 'Password changed successfully'})
-
-@app.route('/api/change-username', methods=['POST'])
-@login_required
-def change_username():
-    data = request.json
-    new_username = data.get('newUsername')
-    
-    admin_creds = load_json(ADMIN_CREDS_FILE)
-    old_username = session.get('username')
-    
-    # Check if username already exists
-    if admin_creds.get('owner', {}).get('username') == new_username:
-        return jsonify({'success': False, 'message': 'Username already exists'}), 400
-    
-    for admin in admin_creds.get('admins', []):
-        if admin.get('username') == new_username:
-            return jsonify({'success': False, 'message': 'Username already exists'}), 400
-    
-    # Update username
-    if admin_creds.get('owner', {}).get('username') == old_username:
-        admin_creds['owner']['username'] = new_username
-    else:
-        for admin in admin_creds.get('admins', []):
-            if admin.get('username') == old_username:
-                admin['username'] = new_username
-                break
-    
-    save_json(ADMIN_CREDS_FILE, admin_creds)
-    session.clear()
-    return jsonify({'success': True, 'message': 'Username changed successfully'})
 
 @app.route('/api/credentials/<platform>/delete-all', methods=['DELETE'])
 @login_required

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { MdDashboard, MdCreditCard, MdVpnKey, MdChevronRight, MdExpandMore, MdLogout } from 'react-icons/md'
+import { MdDashboard, MdCreditCard, MdVpnKey, MdChevronRight, MdExpandMore, MdLogout, MdPeople, MdSettings, MdPerson } from 'react-icons/md'
 import { SiNetflix, SiCrunchyroll, SiSpotify } from 'react-icons/si'
 import { GiBoxingGlove } from 'react-icons/gi'
 import './Sidebar.css'
@@ -84,11 +84,20 @@ function Sidebar({ activeView, setActiveView, stats, platforms, totalKeys, activ
           <div className="section-header">
             <span><MdPerson className="section-icon" /> {username}</span>
           </div>
-          {userRole === 'admin' && (
-            <div className="section-item" onClick={() => setActiveView({ type: 'users' })}>
-              <span>Users</span>
+          {userRole === 'owner' && (
+            <div 
+              className={`section-item ${activeView.type === 'admin-management' ? 'active' : ''}`}
+              onClick={() => setActiveView({ type: 'admin-management' })}
+            >
+              <span><MdPeople className="section-icon" /> Admin Management</span>
             </div>
           )}
+          <div 
+            className={`section-item ${activeView.type === 'settings' ? 'active' : ''}`}
+            onClick={() => setActiveView({ type: 'settings' })}
+          >
+            <span><MdSettings className="section-icon" /> Settings</span>
+          </div>
           <div className="section-item logout-button" onClick={onLogout}>
             <span><MdLogout className="section-icon" /> Logout</span>
           </div>
