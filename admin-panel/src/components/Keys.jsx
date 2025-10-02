@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { MdBarChart } from 'react-icons/md'
 import { SiNetflix, SiCrunchyroll, SiSpotify } from 'react-icons/si'
-import { GiWrestling } from 'react-icons/gi'
+import { GiBoxingGlove } from 'react-icons/gi'
 import './Keys.css'
 
 function Keys({ platform }) {
@@ -27,7 +27,7 @@ function Keys({ platform }) {
     netflix: SiNetflix,
     crunchyroll: SiCrunchyroll,
     spotify: SiSpotify,
-    wwe: GiWrestling
+    wwe: GiBoxingGlove
   }
 
   const PlatformIcon = platformIcons[platform]

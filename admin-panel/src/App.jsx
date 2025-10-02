@@ -15,6 +15,10 @@ function App() {
   const fetchStats = async () => {
     try {
       const response = await fetch('/api/stats')
+      if (!response.ok) {
+        console.warn('Stats fetch failed (likely not authenticated)')
+        return
+      }
       const data = await response.json()
       setStats(data)
     } catch (error) {

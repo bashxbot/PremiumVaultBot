@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { MdAdd, MdUploadFile, MdEdit, MdDelete } from 'react-icons/md'
 import { SiNetflix, SiCrunchyroll, SiSpotify } from 'react-icons/si'
-import { GiWrestling } from 'react-icons/gi'
+import { GiBoxingGlove } from 'react-icons/gi'
 import './Credentials.css'
 
 function Credentials({ platform, refreshStats }) {
@@ -130,7 +130,7 @@ function Credentials({ platform, refreshStats }) {
     netflix: SiNetflix,
     crunchyroll: SiCrunchyroll,
     spotify: SiSpotify,
-    wwe: GiWrestling
+    wwe: GiBoxingGlove
   }
 
   const PlatformIcon = platformIcons[platform]

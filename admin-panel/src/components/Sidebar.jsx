@@ -1,14 +1,14 @@
 import React, { useState } from 'react'
 import { MdDashboard, MdCreditCard, MdVpnKey, MdChevronRight, MdExpandMore } from 'react-icons/md'
 import { SiNetflix, SiCrunchyroll, SiSpotify } from 'react-icons/si'
-import { GiWrestling } from 'react-icons/gi'
+import { GiBoxingGlove } from 'react-icons/gi'
 import './Sidebar.css'
 
 const platformIcons = {
   netflix: SiNetflix,
   crunchyroll: SiCrunchyroll,
   spotify: SiSpotify,
-  wwe: GiWrestling
+  wwe: GiBoxingGlove
 }
 
 function Sidebar({ activeView, setActiveView, stats }) {
@@ -45,7 +45,7 @@ function Sidebar({ activeView, setActiveView, stats }) {
                   onClick={() => setActiveView({ type: 'credentials', platform })}
                 >
                   <span><PlatformIcon className="platform-icon" /> {platform.charAt(0).toUpperCase() + platform.slice(1)}</span>
-                  {stats && stats.stats[platform] && (
+                  {stats && stats.stats && stats.stats[platform] && (
                     <span className="count">{stats.stats[platform].active}/{stats.stats[platform].total}</span>
                   )}
                 </div>
