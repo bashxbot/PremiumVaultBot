@@ -7,9 +7,7 @@ from telegram.error import TelegramError
 
 # Required channels
 REQUIRED_CHANNELS = [
-    "@PremiumVaultFigs",
-    "@accountvaultportal",
-    "@PremiumVaultBackup",
+    "@PremiumVaultFi*g's", "@accountvaultportal", "@PremiumVaultBackup",
     "@PremiumVault"
 ]
 
@@ -47,7 +45,10 @@ def load_json(filename):
         with open(filename, 'r') as f:
             return json.load(f)
     except:
-        return [] if filename != GIVEAWAY_FILE and filename != USERS_FILE else ({} if filename == USERS_FILE else {"active": False})
+        return [] if filename != GIVEAWAY_FILE and filename != USERS_FILE else (
+            {} if filename == USERS_FILE else {
+                "active": False
+            })
 
 
 def save_json(filename, data):
@@ -62,7 +63,8 @@ def is_banned(user_id, username):
     return user_id in banned or f"@{username}" in banned if username else user_id in banned
 
 
-async def check_channel_membership(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def check_channel_membership(update: Update,
+                                   context: ContextTypes.DEFAULT_TYPE):
     """Check if user has joined all required channels"""
     user_id = update.effective_user.id
     all_joined = True
@@ -94,8 +96,7 @@ async def user_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "🚫 <b>Access Denied</b>\n\n"
             "❌ You have been banned from using this bot.",
-            parse_mode='HTML'
-        )
+            parse_mode='HTML')
         return
 
     # Register user
@@ -114,9 +115,15 @@ async def user_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not has_joined:
         channel_buttons = []
         for channel in REQUIRED_CHANNELS:
-            channel_buttons.append([InlineKeyboardButton(f"📢 Join {channel}", url=f"https://t.me/{channel[1:]}")])
+            channel_buttons.append([
+                InlineKeyboardButton(f"📢 Join {channel}",
+                                     url=f"https://t.me/{channel[1:]}")
+            ])
 
-        channel_buttons.append([InlineKeyboardButton("✅ I Have Joined, Continue", callback_data="user_verify_channels")])
+        channel_buttons.append([
+            InlineKeyboardButton("✅ I Have Joined, Continue",
+                                 callback_data="user_verify_channels")
+        ])
 
         reply_markup = InlineKeyboardMarkup(channel_buttons)
 
@@ -125,14 +132,11 @@ async def user_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"👋 Hello {user.mention_html()}!\n\n"
             "🎁 <b>Get Premium Accounts for FREE!</b>\n\n"
             "🔐 To access the bot, you must join all our channels:\n\n"
-            "📢 Please join all channels and click the button below:"
-        )
+            "📢 Please join all channels and click the button below:")
 
-        await update.message.reply_text(
-            text=welcome_text,
-            reply_markup=reply_markup,
-            parse_mode='HTML'
-        )
+        await update.message.reply_text(text=welcome_text,
+                                        reply_markup=reply_markup,
+                                        parse_mode='HTML')
     else:
         await show_main_menu(update, context)
 
@@ -142,52 +146,54 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
 
     keyboard = [
-        [InlineKeyboardButton("🎁 Redeem Key", callback_data="user_redeem_key")],
-        [InlineKeyboardButton("📊 My Stats", callback_data="user_my_stats")],
         [
-            InlineKeyboardButton("📢 Channel 1", url="https://t.me/PremiumVaultFigs"),
-            InlineKeyboardButton("📢 Channel 2", url="https://t.me/accountvaultportal")
+            InlineKeyboardButton("🎁 Redeem Key",
+                                 callback_data="user_redeem_key")
+        ], [InlineKeyboardButton("📊 My Stats", callback_data="user_my_stats")],
+        [
+            InlineKeyboardButton("📢 Channel 1",
+                                 url="https://t.me/PremiumVaultFi*g's"),
+            InlineKeyboardButton("📢 Channel 2",
+                                 url="https://t.me/accountvaultportal")
         ],
         [
-            InlineKeyboardButton("📢 Channel 3", url="https://t.me/PremiumVaultBackup"),
-            InlineKeyboardButton("📢 Channel 4", url="https://t.me/PremiumVault")
-        ],
-        [InlineKeyboardButton("❓ Help", callback_data="user_help")]
+            InlineKeyboardButton("📢 Channel 3",
+                                 url="https://t.me/PremiumVaultBackup"),
+            InlineKeyboardButton("📢 Channel 4",
+                                 url="https://t.me/PremiumVault")
+        ], [InlineKeyboardButton("❓ Help", callback_data="user_help")]
     ]
 
     # Check if there's an active giveaway
     giveaway = load_json(GIVEAWAY_FILE)
     if giveaway.get('active'):
-        keyboard.insert(1, [InlineKeyboardButton("🎁 Join Giveaway", callback_data="user_join_giveaway")])
+        keyboard.insert(1, [
+            InlineKeyboardButton("🎁 Join Giveaway",
+                                 callback_data="user_join_giveaway")
+        ])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    main_text = (
-        "🎮 <b>Premium Vault - Main Menu</b> 🎮\n\n"
-        f"👤 <b>User:</b> {user.mention_html()}\n\n"
-        "✨ <b>What would you like to do?</b>\n\n"
-        "🔑 Redeem premium account keys\n"
-        "📊 Check your statistics\n"
-        "🎁 Participate in giveaways\n"
-        "❓ Get help and support\n\n"
-        "👇 Select an option below:"
-    )
+    main_text = ("🎮 <b>Premium Vault - Main Menu</b> 🎮\n\n"
+                 f"👤 <b>User:</b> {user.mention_html()}\n\n"
+                 "✨ <b>What would you like to do?</b>\n\n"
+                 "🔑 Redeem premium account keys\n"
+                 "📊 Check your statistics\n"
+                 "🎁 Participate in giveaways\n"
+                 "❓ Get help and support\n\n"
+                 "👇 Select an option below:")
 
     if update.callback_query:
         await update.callback_query.edit_message_text(
-            text=main_text,
-            reply_markup=reply_markup,
-            parse_mode='HTML'
-        )
+            text=main_text, reply_markup=reply_markup, parse_mode='HTML')
     else:
-        await update.message.reply_text(
-            text=main_text,
-            reply_markup=reply_markup,
-            parse_mode='HTML'
-        )
+        await update.message.reply_text(text=main_text,
+                                        reply_markup=reply_markup,
+                                        parse_mode='HTML')
 
 
-async def handle_user_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_user_callback(update: Update,
+                               context: ContextTypes.DEFAULT_TYPE):
     """Handle user callback queries"""
     query = update.callback_query
     user_id = update.effective_user.id
@@ -214,11 +220,10 @@ async def handle_user_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         context.user_data['redeem_step'] = 'key'
         await query.edit_message_text(
             text="🎁 <b>Redeem Key</b>\n\n"
-                 "🔑 Please send your redemption key in the format:\n"
-                 "<code>PLATFORM-XXXX-XXXX-XXXX</code>\n\n"
-                 "📝 Example: <code>NETFLIX-A2D8-FA2F-VV82</code>",
-            parse_mode='HTML'
-        )
+            "🔑 Please send your redemption key in the format:\n"
+            "<code>PLATFORM-XXXX-XXXX-XXXX</code>\n\n"
+            "📝 Example: <code>NETFLIX-A2D8-FA2F-VV82</code>",
+            parse_mode='HTML')
 
     elif data == "user_my_stats":
         await show_user_stats(update, context)
@@ -240,7 +245,8 @@ async def verify_channels(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("✅ Verified! Welcome!", show_alert=True)
         await show_main_menu(update, context)
     else:
-        await query.answer("❌ Please join all channels first!", show_alert=True)
+        await query.answer("❌ Please join all channels first!",
+                           show_alert=True)
 
 
 async def show_user_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -273,14 +279,14 @@ async def show_user_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         stats_text += "❌ <i>You haven't redeemed any keys yet!</i>\n\n"
         stats_text += "💡 Use /redeem to redeem your first key!"
 
-    keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
+    keyboard = [[
+        InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")
+    ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await query.edit_message_text(
-        text=stats_text,
-        reply_markup=reply_markup,
-        parse_mode='HTML'
-    )
+    await query.edit_message_text(text=stats_text,
+                                  reply_markup=reply_markup,
+                                  parse_mode='HTML')
 
 
 async def show_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -288,36 +294,34 @@ async def show_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    help_text = (
-        "❓ <b>Help & Information</b>\n\n"
-        "🎮 <b>How to use this bot:</b>\n\n"
-        "1️⃣ <b>Join All Channels</b>\n"
-        "   Make sure you're a member of all required channels\n\n"
-        "2️⃣ <b>Redeem Keys</b>\n"
-        "   Use the 'Redeem Key' button to enter your key code\n"
-        "   Format: PLATFORM-XXXX-XXXX-XXXX\n\n"
-        "3️⃣ <b>Get Premium Accounts</b>\n"
-        "   Valid keys will give you premium account credentials\n\n"
-        "4️⃣ <b>Join Giveaways</b>\n"
-        "   Participate in giveaways for free keys!\n\n"
-        "💡 <b>Need more help?</b>\n"
-        "Contact our support team in the channels!\n\n"
-        "🎁 <b>Available Platforms:</b>\n"
-        "🎬 Netflix\n"
-        "🍜 Crunchyroll\n"
-        "🎵 Spotify\n"
-        "🤼 WWE\n"
-        "... and more!"
-    )
+    help_text = ("❓ <b>Help & Information</b>\n\n"
+                 "🎮 <b>How to use this bot:</b>\n\n"
+                 "1️⃣ <b>Join All Channels</b>\n"
+                 "   Make sure you're a member of all required channels\n\n"
+                 "2️⃣ <b>Redeem Keys</b>\n"
+                 "   Use the 'Redeem Key' button to enter your key code\n"
+                 "   Format: PLATFORM-XXXX-XXXX-XXXX\n\n"
+                 "3️⃣ <b>Get Premium Accounts</b>\n"
+                 "   Valid keys will give you premium account credentials\n\n"
+                 "4️⃣ <b>Join Giveaways</b>\n"
+                 "   Participate in giveaways for free keys!\n\n"
+                 "💡 <b>Need more help?</b>\n"
+                 "Contact our support team in the channels!\n\n"
+                 "🎁 <b>Available Platforms:</b>\n"
+                 "🎬 Netflix\n"
+                 "🍜 Crunchyroll\n"
+                 "🎵 Spotify\n"
+                 "🤼 WWE\n"
+                 "... and more!")
 
-    keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
+    keyboard = [[
+        InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")
+    ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await query.edit_message_text(
-        text=help_text,
-        reply_markup=reply_markup,
-        parse_mode='HTML'
-    )
+    await query.edit_message_text(text=help_text,
+                                  reply_markup=reply_markup,
+                                  parse_mode='HTML')
 
 
 async def join_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -331,38 +335,40 @@ async def join_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not giveaway.get('active'):
         await query.edit_message_text(
             text="❌ <b>No Active Giveaway</b>\n\n"
-                 "There's no active giveaway right now.\n\n"
-                 "Check back later!",
-            parse_mode='HTML'
-        )
+            "There's no active giveaway right now.\n\n"
+            "Check back later!",
+            parse_mode='HTML')
         return
 
     participants = giveaway.get('participants', [])
 
     if user_id in participants:
-        await query.answer("⚠️ You're already in this giveaway!", show_alert=True)
+        await query.answer("⚠️ You're already in this giveaway!",
+                           show_alert=True)
         return
 
     participants.append(user_id)
     giveaway['participants'] = participants
     save_json(GIVEAWAY_FILE, giveaway)
 
-    keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
+    keyboard = [[
+        InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")
+    ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await query.edit_message_text(
         text=f"🎁 <b>Giveaway Entry Confirmed!</b>\n\n"
-             f"✅ You've successfully joined the giveaway!\n\n"
-             f"🏆 <b>Winners:</b> {giveaway.get('winners', 1)}\n"
-             f"👥 <b>Total Participants:</b> {len(participants)}\n"
-             f"⏰ <b>Ends:</b> {giveaway.get('end_time', 'Soon')[:19]}\n\n"
-             f"🍀 Good luck!",
+        f"✅ You've successfully joined the giveaway!\n\n"
+        f"🏆 <b>Winners:</b> {giveaway.get('winners', 1)}\n"
+        f"👥 <b>Total Participants:</b> {len(participants)}\n"
+        f"⏰ <b>Ends:</b> {giveaway.get('end_time', 'Soon')[:19]}\n\n"
+        f"🍀 Good luck!",
         reply_markup=reply_markup,
-        parse_mode='HTML'
-    )
+        parse_mode='HTML')
 
 
-async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_user_message(update: Update,
+                              context: ContextTypes.DEFAULT_TYPE):
     """Handle user text messages"""
     user_id = update.effective_user.id
     user = update.effective_user
@@ -375,22 +381,21 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text(
             "🚫 <b>Access Denied</b>\n\n"
             "❌ You have been banned from using this bot.",
-            parse_mode='HTML'
-        )
+            parse_mode='HTML')
         return
 
     # Import is_admin from admin module
     from admin import is_admin
 
     # Check channel membership (skip for admins)
-    has_joined = is_admin(user_id) or await check_channel_membership(update, context)
+    has_joined = is_admin(user_id) or await check_channel_membership(
+        update, context)
     if not has_joined:
         await update.message.reply_text(
             "⚠️ <b>Access Restricted</b>\n\n"
             "❌ You must join all required channels first!\n\n"
             "Use /start to see the channels and join them.",
-            parse_mode='HTML'
-        )
+            parse_mode='HTML')
         return
 
     # Handle key redemption
@@ -399,7 +404,8 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         context.user_data.pop('redeem_step', None)
 
 
-async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE, key_code):
+async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
+                     key_code):
     """Redeem a key"""
     user_id = str(update.effective_user.id)
     key_code = key_code.strip().upper()
@@ -419,18 +425,17 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE, key_cod
             "❌ <b>Invalid Key</b>\n\n"
             "The key you entered is not valid.\n\n"
             "Please check and try again!",
-            parse_mode='HTML'
-        )
+            parse_mode='HTML')
         return
 
     # Check if key is already used
-    if key_found.get('status') == 'used' or key_found.get('remaining_uses', 0) <= 0:
+    if key_found.get('status') == 'used' or key_found.get('remaining_uses',
+                                                          0) <= 0:
         await update.message.reply_text(
             "❌ <b>Key Already Used</b>\n\n"
             "This key has already been redeemed.\n\n"
             "Try another key!",
-            parse_mode='HTML'
-        )
+            parse_mode='HTML')
         return
 
     # Check if key is expired
@@ -439,8 +444,7 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE, key_cod
             "⏰ <b>Key Expired</b>\n\n"
             "This key has expired.\n\n"
             "Please use a valid key!",
-            parse_mode='HTML'
-        )
+            parse_mode='HTML')
         return
 
     # Check if user already used this key
@@ -449,8 +453,7 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE, key_cod
             "⚠️ <b>Already Redeemed</b>\n\n"
             "You've already redeemed this key!\n\n"
             "Try a different key.",
-            parse_mode='HTML'
-        )
+            parse_mode='HTML')
         return
 
     # Get credential from platform file
@@ -462,8 +465,7 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE, key_cod
             "❌ <b>Error</b>\n\n"
             "No credentials available for this platform.\n\n"
             "Please contact support!",
-            parse_mode='HTML'
-        )
+            parse_mode='HTML')
         return
 
     credentials = load_json(credential_file)
@@ -474,8 +476,7 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE, key_cod
             "❌ <b>No Accounts Available</b>\n\n"
             "All accounts for this platform are currently used.\n\n"
             "Please try again later!",
-            parse_mode='HTML'
-        )
+            parse_mode='HTML')
         return
 
     # Give credential to user
@@ -497,9 +498,12 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE, key_cod
         users[user_id] = {"redeemed_keys": []}
 
     users[user_id].setdefault('redeemed_keys', []).append({
-        "key": key_code,
-        "platform": key_found.get('platform'),
-        "redeemed_at": datetime.now().isoformat()
+        "key":
+        key_code,
+        "platform":
+        key_found.get('platform'),
+        "redeemed_at":
+        datetime.now().isoformat()
     })
     save_json(USERS_FILE, users)
 
@@ -518,17 +522,16 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE, key_cod
         f"• Don't share these credentials\n"
         f"• Change the password if needed\n"
         f"• Enjoy your {platform_name} account!\n\n"
-        f"🎮 Thank you for using Premium Vault Bot!"
-    )
+        f"🎮 Thank you for using Premium Vault Bot!")
 
-    keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
+    keyboard = [[
+        InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")
+    ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text(
-        text=success_text,
-        reply_markup=reply_markup,
-        parse_mode='HTML'
-    )
+    await update.message.reply_text(text=success_text,
+                                    reply_markup=reply_markup,
+                                    parse_mode='HTML')
 
 
 async def redeem_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -544,29 +547,27 @@ async def redeem_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "🚫 <b>Access Denied</b>\n\n"
             "❌ You have been banned from using this bot.",
-            parse_mode='HTML'
-        )
+            parse_mode='HTML')
         return
 
     # Import is_admin from admin module
     from admin import is_admin
 
     # Check channel membership (skip for admins)
-    has_joined = is_admin(user_id) or await check_channel_membership(update, context)
+    has_joined = is_admin(user_id) or await check_channel_membership(
+        update, context)
     if not has_joined:
         await update.message.reply_text(
             "⚠️ <b>Access Restricted</b>\n\n"
             "❌ You must join all required channels first!\n\n"
             "Use /start to see the channels and join them.",
-            parse_mode='HTML'
-        )
+            parse_mode='HTML')
         return
 
     await update.message.reply_text(
         text="🎁 <b>Redeem Key</b>\n\n"
-             "🔑 Please send your redemption key in the format:\n"
-             "<code>PLATFORM-XXXX-XXXX-XXXX</code>\n\n"
-             "📝 Example: <code>NETFLIX-A2D8-FA2F-VV82</code>",
-        parse_mode='HTML'
-    )
+        "🔑 Please send your redemption key in the format:\n"
+        "<code>PLATFORM-XXXX-XXXX-XXXX</code>\n\n"
+        "📝 Example: <code>NETFLIX-A2D8-FA2F-VV82</code>",
+        parse_mode='HTML')
     context.user_data['redeem_step'] = 'key'
