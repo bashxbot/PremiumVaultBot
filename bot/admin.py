@@ -644,6 +644,12 @@ async def execute_revoke(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+def get_project_root():
+    """Get the project root directory (parent of bot folder)"""
+    import os
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
 async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle admin text messages"""
     user_id = update.effective_user.id
@@ -713,9 +719,11 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
         # Load both main keys and platform-specific keys
         keys_data = load_json(KEYS_FILE)
         
-        # Create keys folder if it doesn't exist
-        os.makedirs('keys', exist_ok=True)
-        platform_keys_file = f'keys/{platform.lower()}.json'
+        # Create keys folder if it doesn't exist (at project root)
+        project_root = get_project_root()
+        keys_dir = os.path.join(project_root, 'keys')
+        os.makedirs(keys_dir, exist_ok=True)
+        platform_keys_file = os.path.join(keys_dir, f'{platform.lower()}.json')
         platform_keys_data = load_json(platform_keys_file) if os.path.exists(platform_keys_file) else []
         
         generated_keys = []
@@ -831,10 +839,9 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
             count = int(update.message.text)
             platform = context.user_data.get('cred_platform', '').lower()
             
-            credential_file = f'credentials/{platform}.json'
-            
-            # Ensure credentials directory exists
-            os.makedirs('credentials', exist_ok=True)
+            # Use project root for credentials
+            project_root = get_project_root()
+            credential_file = os.path.join(project_root, 'credentials', f'{platform}.json')
             
             if not os.path.exists(credential_file):
                 keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]

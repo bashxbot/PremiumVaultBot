@@ -5,6 +5,13 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram.error import TelegramError
 
+
+def get_project_root():
+    """Get the project root directory (parent of bot folder)"""
+    import os
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
 # Required channels
 REQUIRED_CHANNELS = [
     "@PremiumVaultFi*g's", "@accountvaultportal", "@PremiumVaultBackup",
@@ -468,9 +475,10 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
             parse_mode='HTML')
         return
 
-    # Get credential from platform file
+    # Get credential from platform file (at project root)
     platform = key_found.get('platform', '').lower()
-    credential_file = f'credentials/{platform}.json'
+    project_root = get_project_root()
+    credential_file = os.path.join(project_root, 'credentials', f'{platform}.json')
 
     if not os.path.exists(credential_file):
         await update.message.reply_text(
@@ -516,9 +524,10 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
 
     save_json(KEYS_FILE, keys)
 
-    # Also update platform-specific keys file
+    # Also update platform-specific keys file (at project root)
     platform = key_found.get('platform', '').lower()
-    platform_keys_file = f'keys/{platform}.json'
+    project_root = get_project_root()
+    platform_keys_file = os.path.join(project_root, 'keys', f'{platform}.json')
     if os.path.exists(platform_keys_file):
         platform_keys = load_json(platform_keys_file)
         for pk in platform_keys:
