@@ -1,0 +1,79 @@
+Make a Telegram bot with these information -
+It is a bot which can be used for giveaways.
+
+
+for admins -
+/start - show welcome text. there will be different commands. they will be - generate keys, bot stats, list all keys(different sections for cleanliness), clear expired keys, start giveaway, stop giveaway, revoke key, broadcast, ban user, back to main
+generate keys button - can be used to generate keys. when clicked, asks for the platform, e.g. Netflix, Crunchyroll, Spotify, WWE, etc. when clicked one the platform, asks for options like number of keys to be generated, uses, account text. example output -
+Generate keys clicked
+Chose the platform
+[Netflix] clicked
+[Crunchyroll]
+[Spotify]
+[WWE]
+(etc.)
+Chose the count(asks to send numerical value)
+5
+chose the uses(asks to send numerical value)
+1
+chose account text
+Premium Account
+Generated keys -
+NETFLIX-A2D8-FA2F-VV82
+NETFLIX-JF82-FH25-JF2S
+NETFLIX-K29F-GI39-14F4
+NETFLIX-FK29-LKN3-FJ2S
+NETFLIX-VJ2N-L1J3-VKW8
+
+Generated Keys - 5
+Platform - Netflix
+Uses - 1
+...
+note - the keys should be in mono so it can be copied on click
+
+These keys are connected to netfix.json file, in which credentials are available in this format -
+email@email.com:password
+email123@email.com:password123
+...
+note - admins can edit such files with a web based admin panel which is connected to the .json files
+
+bot stats button - can be used to see bot's stats like total keys, active keys, expired keys, used keys, etc. they should also show the lists.
+start giveaway button - can be used to start a giveaway. when clicked, asks for duration like 30 mins, 1 hour, 2 hours, 3 hours,... random (number of winners) will win the giveaway and will get the keys from generated keys.
+revoke key button - can be used to revoke any key. first, asks for the platform, options like revoke last generated keys, revoke all keys, revoke custom keys(shows lists as buttons), lastly, asks for a confirmation message.
+broadcast - can be used to do broadcasts. admins can send a message to all users who have used to bot, using the bot.
+ban user - can be used to ban a user for using the bot with the username or chat id of user.
+back to main - can be used to show the main section.
+
+For users -
+Make the bot much interactive and easy to use. Add inline buttons for making it user friendly.
+/start - add welcome text. we can't use any of the bot commands without joining these channels - @PremiumVaultFi*g's, @accountvaultportal, @PremiumVaultBackup, @PremiumVault
+let the bot check the user if he has joined all of them or not. if yes, a button like I have joined, continue
+after it, users can see buttons like redeem key, my stats, channel 1, channel 2, channel 3, channel 4, help - these are must
+/redeem - users can redeem codes like NETFLIX-XXXX-XXXX-XXXX. if a key is valid and the user is the first one to redeem it, user gets a credential stored in netflix.json file.
+note - users can't use any command if user hasn't joined all the channels.
+
+file management -
+project/bot -
+main.py - as the root
+users.py - for user logics
+admin.py - for admin logics
+project/credentials -
+netflix.json(accounts of netflix)
+crunchyroll.json(accounts of crunchyroll)
+spotify.json(accounts of spotify)
+wwe.json(accounts of wwe)
+...
+
+format -
+email:password
+
+
+
+note - make each and every response beautiful, using emojis, formats, etc. it shouldn't feel empty or boring.
+use this telegram bot api -8039142646:AAFpnOAX197pxqMqWjw99o-o25oD0SA1BC8
+please see the pasted file and make each and every response beautiful.
+note -
+don't use things like mastra
+don't make it too complex
+don't make the web admin panel for now, just add some fake credentials for testing
+make sure the credentials are stored in a simple format. and strucutre with status - active, expired
