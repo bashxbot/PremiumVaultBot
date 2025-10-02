@@ -25,7 +25,7 @@ from users import (
 
 # Bot token - load from environment variable or use the provided token
 import os
-BOT_TOKEN = os.getenv('BOT_TOKEN', '8039142646:AAFpnOAX197pxqMqWjw99o-o25oD0SA1BC8')
+BOT_TOKEN = os.getenv('BOT_TOKEN', '8255265958:AAFNiamlV2F9Tn5bdxZn6mFj3um6kZ3Seso')
 
 # Enable logging
 logging.basicConfig(
