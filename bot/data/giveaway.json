@@ -1,7 +1,8 @@
 {
-  "active": false,
+  "active": true,
+  "platform": "WWE",
   "duration": "30m",
-  "winners": 3,
-  "end_time": "2025-10-02T06:47:10.789298",
+  "winners": 1,
+  "end_time": "2025-10-02T07:26:52.270677",
   "participants": []
 }

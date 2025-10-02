@@ -1,0 +1,22 @@
+[
+  {
+    "key": "CRUNCHYROLL-9CWU-Q5MG-DE0N",
+    "platform": "Crunchyroll",
+    "uses": 1,
+    "remaining_uses": 0,
+    "account_text": "CR PREMIUM",
+    "status": "used",
+    "created_at": "2025-10-02T06:51:28.312373",
+    "redeemed_at": "2025-10-02T06:51:37.068474",
+    "redeemed_by": [
+      {
+        "user_id": "6562270244",
+        "username": "BEASTSEC",
+        "redeemed_at": "2025-10-02T06:51:37.068486"
+      }
+    ],
+    "used_by": [
+      "6562270244"
+    ]
+  }
+]
