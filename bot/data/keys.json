@@ -198,5 +198,17 @@
     "used_by": [
       "6562270244"
     ]
+  },
+  {
+    "key": "NETFLIX-SBEH-N48D-5PKT",
+    "platform": "Netflix",
+    "uses": 1,
+    "remaining_uses": 1,
+    "account_text": "nf",
+    "status": "active",
+    "created_at": "2025-10-02T13:47:25.176874",
+    "redeemed_at": null,
+    "redeemed_by": [],
+    "used_by": []
   }
 ]
