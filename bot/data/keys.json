@@ -1,25 +1,5 @@
 [
   {
-    "key": "NETFLIX-Z1ZH-CFX1-2BWQ",
-    "platform": "Netflix",
-    "uses": 1,
-    "remaining_uses": 0,
-    "account_text": "nf",
-    "status": "used",
-    "created_at": "2025-10-02T06:34:39.998455",
-    "redeemed_at": "2025-10-02T06:36:21.140062",
-    "redeemed_by": [
-      {
-        "user_id": "6562270244",
-        "username": "BEASTSEC",
-        "redeemed_at": "2025-10-02T06:36:21.140072"
-      }
-    ],
-    "used_by": [
-      "6562270244"
-    ]
-  },
-  {
     "key": "CRUNCHYROLL-JB74-IIBT-JHK3",
     "platform": "Crunchyroll",
     "uses": 1,
@@ -132,30 +112,6 @@
     "used_by": []
   },
   {
-    "key": "NETFLIX-YK9E-GPS6-C6NK",
-    "platform": "Netflix",
-    "uses": 2,
-    "remaining_uses": 2,
-    "account_text": "1",
-    "status": "active",
-    "created_at": "2025-10-02T08:57:01.311724",
-    "redeemed_at": null,
-    "redeemed_by": [],
-    "used_by": []
-  },
-  {
-    "key": "NETFLIX-MI22-4V9F-G4AC",
-    "platform": "Netflix",
-    "uses": 1,
-    "remaining_uses": 1,
-    "account_text": "Premium",
-    "status": "active",
-    "created_at": "2025-10-02T13:13:57.407845",
-    "redeemed_at": null,
-    "redeemed_by": [],
-    "used_by": []
-  },
-  {
     "key": "SPOTIFY-MZ4Y-QN9F-VTW1",
     "platform": "Spotify",
     "uses": 1,
@@ -200,13 +156,37 @@
     ]
   },
   {
-    "key": "NETFLIX-SBEH-N48D-5PKT",
+    "key": "NETFLIX-2OBQ-BMA6-ATYD",
     "platform": "Netflix",
+    "uses": 2,
+    "remaining_uses": 2,
+    "account_text": "Lol",
+    "status": "active",
+    "created_at": "2025-10-02T16:08:56.658369",
+    "redeemed_at": null,
+    "redeemed_by": [],
+    "used_by": []
+  },
+  {
+    "key": "CRUNCHYROLL-KDB6-6MXS-06GT",
+    "platform": "Crunchyroll",
     "uses": 1,
     "remaining_uses": 1,
-    "account_text": "nf",
+    "account_text": "Cr",
     "status": "active",
-    "created_at": "2025-10-02T13:47:25.176874",
+    "created_at": "2025-10-02T16:09:17.782029",
+    "redeemed_at": null,
+    "redeemed_by": [],
+    "used_by": []
+  },
+  {
+    "key": "CRUNCHYROLL-FNF8-IH6Q-BO6L",
+    "platform": "Crunchyroll",
+    "uses": 1,
+    "remaining_uses": 1,
+    "account_text": "Lol",
+    "status": "active",
+    "created_at": "2025-10-02T16:09:37.744551",
     "redeemed_at": null,
     "redeemed_by": [],
     "used_by": []

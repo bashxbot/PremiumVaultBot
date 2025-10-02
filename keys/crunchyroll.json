@@ -130,5 +130,29 @@
     "redeemed_at": null,
     "redeemed_by": [],
     "used_by": []
+  },
+  {
+    "key": "CRUNCHYROLL-KDB6-6MXS-06GT",
+    "platform": "Crunchyroll",
+    "uses": 1,
+    "remaining_uses": 1,
+    "account_text": "Cr",
+    "status": "active",
+    "created_at": "2025-10-02T16:09:17.782029",
+    "redeemed_at": null,
+    "redeemed_by": [],
+    "used_by": []
+  },
+  {
+    "key": "CRUNCHYROLL-FNF8-IH6Q-BO6L",
+    "platform": "Crunchyroll",
+    "uses": 1,
+    "remaining_uses": 1,
+    "account_text": "Lol",
+    "status": "active",
+    "created_at": "2025-10-02T16:09:37.744551",
+    "redeemed_at": null,
+    "redeemed_by": [],
+    "used_by": []
   }
 ]
