@@ -7,6 +7,12 @@
   "6562270244": {
     "username": "BEASTSEC",
     "joined_at": "2025-10-02T05:45:38.739680",
-    "redeemed_keys": []
+    "redeemed_keys": [
+      {
+        "key": "NETFLIX-Z1ZH-CFX1-2BWQ",
+        "platform": "Netflix",
+        "redeemed_at": "2025-10-02T06:36:21.140360"
+      }
+    ]
   }
 }
