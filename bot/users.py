@@ -14,8 +14,10 @@ def get_project_root():
 
 # Required channels
 REQUIRED_CHANNELS = [
-    "@PremiumVaultFi*g's", "@accountvaultportal", "@PremiumVaultBackup",
-    "@PremiumVault"
+    "https://t.me/+gxVbPeU842ZkNmU0",
+    "https://t.me/+yiYViAOknS9lZjlk",
+    "https://t.me/+RKjw0ypr_e9lZTI0",
+    "https://t.me/accountvaultportal"
 ]
 
 # Database files
