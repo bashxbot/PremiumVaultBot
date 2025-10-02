@@ -802,18 +802,6 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
                 caption_text,
                 reply_markup=reply_markup,
                 parse_mode='HTML'
-            )s photo:
-                await update.message.reply_photo(
-                    photo=photo,
-                    caption=caption_text,
-                    reply_markup=reply_markup,
-                    parse_mode='HTML'
-                )
-        else:
-            await update.message.reply_text(
-                caption_text,
-                reply_markup=reply_markup,
-                parse_mode='HTML'
             )
 
     # Handle giveaway winner count
