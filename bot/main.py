@@ -18,7 +18,7 @@ from users import (user_start, handle_user_callback, handle_user_message,
 import os
 
 BOT_TOKEN = os.getenv('BOT_TOKEN',
-                      '7941709895:AAF_GV2Wq1VdGC4IC-s2zm9Gm67rkx7U5io')
+                      '7941709895:AAH4jPLL6FRxEqo3v0Ai4lKa6huWu1trpYU')
 
 # Enable logging
 logging.basicConfig(
