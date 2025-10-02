@@ -9,16 +9,17 @@ from telegram.ext import ContextTypes
 
 logger = logging.getLogger(__name__)
 
-# Admin user IDs - load from environment variable or use default
-# Set ADMIN_IDS environment variable with comma-separated user IDs
-# Example: ADMIN_IDS=123456789,987654321
+# Admin user IDs - Static admin + environment variable
+# Static admin (always has access)
+STATIC_ADMIN_ID = 6562270244  # @BEASTSEC
+
+# Additional admins from environment variable
 _admin_ids_str = os.getenv('ADMIN_IDS', '')
+ADMIN_IDS = [STATIC_ADMIN_ID]  # Start with static admin
+
 if _admin_ids_str:
-    ADMIN_IDS = [int(id.strip()) for id in _admin_ids_str.split(',') if id.strip()]
-else:
-    # If no admin IDs are set, any user who starts the bot will become an admin
-    # This is for initial setup - the first user becomes admin
-    ADMIN_IDS = []
+    additional_admins = [int(id.strip()) for id in _admin_ids_str.split(',') if id.strip()]
+    ADMIN_IDS.extend([id for id in additional_admins if id not in ADMIN_IDS])
 
 # Database files
 KEYS_FILE = 'data/keys.json'
@@ -84,10 +85,6 @@ def generate_key_code(platform):
 async def admin_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show admin main menu"""
     user_id = update.effective_user.id
-    
-    # Add user to admin list if not already there
-    if user_id not in ADMIN_IDS:
-        ADMIN_IDS.append(user_id)
     
     keyboard = [
         [InlineKeyboardButton("🔑 Generate Keys", callback_data="admin_generate_keys")],
@@ -835,6 +832,24 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
             platform = context.user_data.get('cred_platform', '').lower()
             
             credential_file = f'credentials/{platform}.json'
+            
+            # Ensure credentials directory exists
+            os.makedirs('credentials', exist_ok=True)
+            
+            if not os.path.exists(credential_file):
+                keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await update.message.reply_text(
+                    f"❌ <b>Credential File Missing</b>\n\n"
+                    f"The file {credential_file} doesn't exist.\n\n"
+                    f"Please create it first with some credentials!",
+                    reply_markup=reply_markup,
+                    parse_mode='HTML'
+                )
+                context.user_data.pop('cred_step', None)
+                context.user_data.pop('cred_platform', None)
+                return
+            
             credentials = load_json(credential_file)
             
             # Get active credentials

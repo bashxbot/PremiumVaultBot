@@ -109,8 +109,11 @@ async def user_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
         save_json(USERS_FILE, users)
 
-    # Check channel membership
-    has_joined = await check_channel_membership(update, context)
+    # Import is_admin from admin module
+    from admin import is_admin
+
+    # Check channel membership (skip for admins)
+    has_joined = is_admin(user_id) or await check_channel_membership(update, context)
 
     if not has_joined:
         channel_buttons = []
