@@ -14,10 +14,10 @@ def get_project_root():
 
 # Required channels
 REQUIRED_CHANNELS = [
-    "+gxVbPeU842ZkNmU0",
-    "+yiYViAOknS9lZjlk",
+    "accountvaultportal",
     "+RKjw0ypr_e9lZTI0",
-    "accountvaultportal"
+    "+yiYViAOknS9lZjlk",
+    "+gxVbPeU842ZkNmU0"
 ]
 
 # Database files
@@ -131,10 +131,10 @@ async def user_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not has_joined:
         channel_buttons = [
-            [InlineKeyboardButton("🔗 Join Channel 1", url="https://t.me/+gxVbPeU842ZkNmU0")],
-            [InlineKeyboardButton("🔗 Join Channel 2", url="https://t.me/+yiYViAOknS9lZjlk")],
-            [InlineKeyboardButton("🔗 Join Channel 3", url="https://t.me/+RKjw0ypr_e9lZTI0")],
-            [InlineKeyboardButton("🔗 Join Channel 4", url="https://t.me/accountvaultportal")],
+            [InlineKeyboardButton("🔗 Join Channel Portal", url="https://t.me/accountvaultportal")],
+            [InlineKeyboardButton("🔗 Join Channel Main", url="https://t.me/+RKjw0ypr_e9lZTI0")],
+            [InlineKeyboardButton("🔗 Join Channel Backup", url="https://t.me/+yiYViAOknS9lZjlk")],
+            [InlineKeyboardButton("🔗 Join Channel Config", url="https://t.me/+gxVbPeU842ZkNmU0")],
             [InlineKeyboardButton("✅ I Joined Both, Continue", callback_data="user_verify_channels")]
         ]
 
