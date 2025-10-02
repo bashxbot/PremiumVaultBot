@@ -768,6 +768,10 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
 
         keys_text = "\n".join([f"<code>{k}</code>" for k in generated_keys])
 
+        # Create keyboard for back button
+        keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
         # Send platform image with keys
         platform_images = {
             'netflix': 'bot/assets/netflix.png',
