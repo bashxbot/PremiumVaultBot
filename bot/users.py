@@ -119,8 +119,13 @@ async def user_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Import is_admin from admin module
     from admin import is_admin
 
-    # Check channel membership (skip for admins)
-    has_joined = is_admin(user_id) or await check_channel_membership(update, context)
+    # Skip channel check entirely for admins - show main menu directly
+    if is_admin(user_id):
+        await show_main_menu(update, context)
+        return
+
+    # Check channel membership for regular users
+    has_joined = await check_channel_membership(update, context)
 
     if not has_joined:
         channel_buttons = []
