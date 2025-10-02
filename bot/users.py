@@ -218,11 +218,16 @@ async def handle_user_callback(update: Update,
     elif data == "user_redeem_key":
         await query.answer()
         context.user_data['redeem_step'] = 'key'
+        
+        keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
         await query.edit_message_text(
             text="🎁 <b>Redeem Key</b>\n\n"
             "🔑 Please send your redemption key in the format:\n"
             "<code>PLATFORM-XXXX-XXXX-XXXX</code>\n\n"
             "📝 Example: <code>NETFLIX-A2D8-FA2F-VV82</code>",
+            reply_markup=reply_markup,
             parse_mode='HTML')
 
     elif data == "user_my_stats":
@@ -233,6 +238,9 @@ async def handle_user_callback(update: Update,
 
     elif data == "user_join_giveaway":
         await join_giveaway(update, context)
+    
+    else:
+        await query.answer("❌ Unknown action!", show_alert=True)
 
 
 async def verify_channels(update: Update, context: ContextTypes.DEFAULT_TYPE):

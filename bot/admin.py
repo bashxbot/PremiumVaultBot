@@ -2,9 +2,12 @@ import json
 import os
 import random
 import string
+import logging
 from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
+
+logger = logging.getLogger(__name__)
 
 # Admin user IDs - load from environment variable or use default
 # Set ADMIN_IDS environment variable with comma-separated user IDs
@@ -555,28 +558,48 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
             count = int(update.message.text)
             context.user_data['gen_count'] = count
             context.user_data['gen_step'] = 'uses'
+            
+            keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data="admin_main")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
             await update.message.reply_text(
                 f"🎯 <b>Count: {count}</b>\n\n"
                 f"How many times can each key be used?\n\n"
                 f"📝 Please send a number (e.g., 1):",
+                reply_markup=reply_markup,
                 parse_mode='HTML'
             )
         except ValueError:
-            await update.message.reply_text("❌ Please send a valid number!")
+            keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text(
+                "❌ Please send a valid number!",
+                reply_markup=reply_markup
+            )
     
     elif context.user_data.get('gen_step') == 'uses':
         try:
             uses = int(update.message.text)
             context.user_data['gen_uses'] = uses
             context.user_data['gen_step'] = 'account_text'
+            
+            keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data="admin_main")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
             await update.message.reply_text(
                 f"✅ <b>Uses: {uses}</b>\n\n"
                 f"What account type is this?\n\n"
                 f"📝 Please send the account text (e.g., Premium Account):",
+                reply_markup=reply_markup,
                 parse_mode='HTML'
             )
         except ValueError:
-            await update.message.reply_text("❌ Please send a valid number!")
+            keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text(
+                "❌ Please send a valid number!",
+                reply_markup=reply_markup
+            )
     
     elif context.user_data.get('gen_step') == 'account_text':
         account_text = update.message.text
@@ -666,16 +689,25 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
             context.user_data.pop('giveaway_step', None)
             context.user_data.pop('giveaway_duration', None)
             
+            keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
             await update.message.reply_text(
                 f"🎁 <b>Giveaway Started!</b>\n\n"
                 f"⏱️ <b>Duration:</b> {duration}\n"
                 f"🏆 <b>Winners:</b> {winners}\n"
                 f"⏰ <b>Ends at:</b> {end_time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
                 f"✅ Users can now participate!",
+                reply_markup=reply_markup,
                 parse_mode='HTML'
             )
         except ValueError:
-            await update.message.reply_text("❌ Please send a valid number!")
+            keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text(
+                "❌ Please send a valid number!",
+                reply_markup=reply_markup
+            )
     
     # Handle broadcast
     elif context.user_data.get('broadcast_step') == 'message':
@@ -693,15 +725,20 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
                     parse_mode='HTML'
                 )
                 success_count += 1
-            except:
+            except Exception as e:
                 fail_count += 1
+                logger.error(f"Failed to send broadcast to {user_id_str}: {e}")
         
         context.user_data.pop('broadcast_step', None)
+        
+        keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
         
         await update.message.reply_text(
             f"📢 <b>Broadcast Complete</b>\n\n"
             f"✅ Successfully sent to {success_count} users\n"
             f"❌ Failed to send to {fail_count} users",
+            reply_markup=reply_markup,
             parse_mode='HTML'
         )
     
@@ -718,8 +755,16 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
             try:
                 user_identifier = int(user_input)
             except ValueError:
-                await update.message.reply_text("❌ Invalid user ID or username!")
+                keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await update.message.reply_text(
+                    "❌ Invalid user ID or username!",
+                    reply_markup=reply_markup
+                )
                 return
+        
+        keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
         
         if user_identifier not in banned:
             banned.append(user_identifier)
@@ -730,7 +775,11 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
             await update.message.reply_text(
                 f"🚫 <b>User Banned</b>\n\n"
                 f"✅ User {user_input} has been banned from using the bot!",
+                reply_markup=reply_markup,
                 parse_mode='HTML'
             )
         else:
-            await update.message.reply_text("❌ User is already banned!")
+            await update.message.reply_text(
+                "❌ User is already banned!",
+                reply_markup=reply_markup
+            )
