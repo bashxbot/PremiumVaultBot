@@ -64,3 +64,7 @@ args = "python api_server.py"
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 35475
+externalPort = 3000

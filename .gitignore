@@ -17,3 +17,4 @@ admin-panel/dist/
 *.log
 .env
 .DS_Store
+.flask_secret_key

@@ -774,10 +774,10 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
 
         # Send platform image with keys
         platform_images = {
-            'netflix': 'bot/assets/netflix.png',
-            'crunchyroll': 'bot/assets/crunchyroll.png',
-            'wwe': 'bot/assets/wwe.png',
-            'spotify': 'bot/assets/spotify.png'
+            'netflix': 'assets/netflix.png',
+            'crunchyroll': 'assets/crunchyroll.png',
+            'wwe': 'assets/wwe.png',
+            'spotify': 'assets/spotify.png'
         }
 
         image_path = platform_images.get(platform.lower())
@@ -938,10 +938,10 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
 
             # Send platform image with credentials
             platform_images = {
-                'netflix': 'bot/assets/netflix.png',
-                'crunchyroll': 'bot/assets/crunchyroll.png',
-                'wwe': 'bot/assets/wwe.png',
-                'spotify': 'bot/assets/spotify.png'
+                'netflix': 'assets/netflix.png',
+                'crunchyroll': 'assets/crunchyroll.png',
+                'wwe': 'assets/wwe.png',
+                'spotify': 'assets/spotify.png'
             }
 
             image_path = platform_images.get(platform)

@@ -3,12 +3,26 @@ from flask import Flask, request, jsonify, send_from_directory, session, redirec
 from flask_cors import CORS
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
+import secrets
 
 app = Flask(__name__, static_folder='admin-panel/dist', static_url_path='')
 CORS(app)
-app.secret_key = os.getenv('FLASK_SECRET_KEY', os.urandom(24).hex())
+
+# Generate or load persistent secret key
+SECRET_KEY_FILE = '.flask_secret_key'
+if os.path.exists(SECRET_KEY_FILE):
+    with open(SECRET_KEY_FILE, 'r') as f:
+        app.secret_key = f.read().strip()
+else:
+    app.secret_key = os.getenv('FLASK_SECRET_KEY', secrets.token_hex(32))
+    with open(SECRET_KEY_FILE, 'w') as f:
+        f.write(app.secret_key)
+
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(seconds=86400)
 
 PLATFORMS = ['netflix', 'crunchyroll', 'spotify', 'wwe']
 CREDENTIALS_DIR = 'credentials'
@@ -56,6 +70,7 @@ def login():
     
     # Check owner credentials
     if admin_creds.get('owner', {}).get('username') == username and admin_creds.get('owner', {}).get('password') == password:
+        session.permanent = True
         session['logged_in'] = True
         session['username'] = username
         session['role'] = 'owner'
@@ -64,6 +79,7 @@ def login():
     # Check admin credentials
     for admin in admin_creds.get('admins', []):
         if admin.get('username') == username and admin.get('password') == password:
+            session.permanent = True
             session['logged_in'] = True
             session['username'] = username
             session['role'] = 'admin'

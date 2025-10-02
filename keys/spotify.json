@@ -318,5 +318,17 @@
     "used_by": [
       "6562270244"
     ]
+  },
+  {
+    "key": "SPOTIFY-ISQ2-FXZ9-6XGW",
+    "platform": "Spotify",
+    "uses": 2,
+    "remaining_uses": 2,
+    "account_text": "1",
+    "status": "active",
+    "created_at": "2025-10-02T16:12:07.698341",
+    "redeemed_at": null,
+    "redeemed_by": [],
+    "used_by": []
   }
 ]
