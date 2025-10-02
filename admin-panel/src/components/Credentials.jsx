@@ -89,6 +89,24 @@ function Credentials({ platform, refreshStats }) {
     }
   }
 
+  const handleDeleteAll = async () => {
+    if (!confirm(`Are you sure you want to delete ALL ${platform} credentials? This cannot be undone!`)) return
+    
+    try {
+      const response = await fetch(`/api/credentials/${platform}/delete-all`, {
+        method: 'DELETE'
+      })
+      const data = await response.json()
+      if (data.success) {
+        alert(data.message)
+        fetchCredentials()
+        refreshStats()
+      }
+    } catch (error) {
+      alert('Error deleting all credentials: ' + error.message)
+    }
+  }
+
   const handleUpload = async (e) => {
     e.preventDefault()
     if (!uploadFile) return
@@ -142,6 +160,7 @@ function Credentials({ platform, refreshStats }) {
         <div className="header-actions">
           <button className="btn btn-success" onClick={openAddModal}><MdAdd /> Add Credential</button>
           <button className="btn btn-primary" onClick={() => setShowUploadModal(true)}><MdUploadFile /> Upload from File</button>
+          <button className="btn btn-danger" onClick={handleDeleteAll}><MdDelete /> Delete All</button>
         </div>
       </div>
 

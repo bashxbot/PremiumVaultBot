@@ -139,28 +139,32 @@ def delete_admin(username):
 @app.route('/api/stats')
 @login_required
 def get_stats():
-    ensure_credentials_dir()
-    stats = {}
-    for platform in PLATFORMS:
-        filepath = os.path.join(CREDENTIALS_DIR, f'{platform}.json')
-        creds = load_json(filepath)
-        stats[platform] = {
-            'total': len(creds),
-            'active': len([c for c in creds if c.get('status') == 'active']),
-            'claimed': len([c for c in creds if c.get('status') == 'claimed']),
-            'inactive': len([c for c in creds if c.get('status') == 'inactive'])
-        }
-    
-    keys_data = load_json(KEYS_FILE) if os.path.exists(KEYS_FILE) else []
-    total_keys = len(keys_data)
-    active_keys = len([k for k in keys_data if k.get('status') == 'active'])
-    
-    return jsonify({
-        'platforms': PLATFORMS,
-        'stats': stats,
-        'total_keys': total_keys,
-        'active_keys': active_keys
-    })
+    try:
+        ensure_credentials_dir()
+        stats = {}
+        for platform in PLATFORMS:
+            filepath = os.path.join(CREDENTIALS_DIR, f'{platform}.json')
+            creds = load_json(filepath)
+            stats[platform] = {
+                'total': len(creds),
+                'active': len([c for c in creds if c.get('status') == 'active']),
+                'claimed': len([c for c in creds if c.get('status') == 'claimed']),
+                'inactive': len([c for c in creds if c.get('status') == 'inactive'])
+            }
+        
+        keys_data = load_json(KEYS_FILE) if os.path.exists(KEYS_FILE) else []
+        total_keys = len(keys_data)
+        active_keys = len([k for k in keys_data if k.get('status') == 'active'])
+        
+        return jsonify({
+            'success': True,
+            'platforms': PLATFORMS,
+            'stats': stats,
+            'total_keys': total_keys,
+            'active_keys': active_keys
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/credentials/<platform>', methods=['GET'])
 @login_required
@@ -295,6 +299,90 @@ def edit_credential(platform, index):
     
     return jsonify({'success': False, 'message': 'Invalid index'}), 400
 
+@app.route('/api/change-password', methods=['POST'])
+@login_required
+def change_password():
+    data = request.json
+    current_password = data.get('currentPassword')
+    new_password = data.get('newPassword')
+    
+    admin_creds = load_json(ADMIN_CREDS_FILE)
+    username = session.get('username')
+    
+    # Check if owner
+    if admin_creds.get('owner', {}).get('username') == username:
+        if admin_creds.get('owner', {}).get('password') != current_password:
+            return jsonify({'success': False, 'message': 'Current password is incorrect'}), 400
+        admin_creds['owner']['password'] = new_password
+    else:
+        # Check admins
+        admin_found = False
+        for admin in admin_creds.get('admins', []):
+            if admin.get('username') == username:
+                if admin.get('password') != current_password:
+                    return jsonify({'success': False, 'message': 'Current password is incorrect'}), 400
+                admin['password'] = new_password
+                admin_found = True
+                break
+        
+        if not admin_found:
+            return jsonify({'success': False, 'message': 'User not found'}), 404
+    
+    save_json(ADMIN_CREDS_FILE, admin_creds)
+    return jsonify({'success': True, 'message': 'Password changed successfully'})
+
+@app.route('/api/change-username', methods=['POST'])
+@login_required
+def change_username():
+    data = request.json
+    new_username = data.get('newUsername')
+    
+    admin_creds = load_json(ADMIN_CREDS_FILE)
+    old_username = session.get('username')
+    
+    # Check if username already exists
+    if admin_creds.get('owner', {}).get('username') == new_username:
+        return jsonify({'success': False, 'message': 'Username already exists'}), 400
+    
+    for admin in admin_creds.get('admins', []):
+        if admin.get('username') == new_username:
+            return jsonify({'success': False, 'message': 'Username already exists'}), 400
+    
+    # Update username
+    if admin_creds.get('owner', {}).get('username') == old_username:
+        admin_creds['owner']['username'] = new_username
+    else:
+        for admin in admin_creds.get('admins', []):
+            if admin.get('username') == old_username:
+                admin['username'] = new_username
+                break
+    
+    save_json(ADMIN_CREDS_FILE, admin_creds)
+    session.clear()
+    return jsonify({'success': True, 'message': 'Username changed successfully'})
+
+@app.route('/api/credentials/<platform>/delete-all', methods=['DELETE'])
+@login_required
+def delete_all_credentials(platform):
+    if platform not in PLATFORMS:
+        return jsonify({'success': False, 'message': 'Invalid platform'}), 400
+    
+    filepath = os.path.join(CREDENTIALS_DIR, f'{platform}.json')
+    save_json(filepath, [])
+    return jsonify({'success': True, 'message': f'All {platform} credentials deleted successfully'})
+
+@app.route('/api/keys/<platform>/delete-all', methods=['DELETE'])
+@login_required
+def delete_all_keys(platform):
+    if platform not in PLATFORMS:
+        return jsonify({'success': False, 'message': 'Invalid platform'}), 400
+    
+    keys_data = load_json(KEYS_FILE) if os.path.exists(KEYS_FILE) else []
+    # Remove all keys for this platform
+    keys_data = [k for k in keys_data if k.get('platform', '').lower() != platform.lower()]
+    save_json(KEYS_FILE, keys_data)
+    return jsonify({'success': True, 'message': f'All {platform} keys deleted successfully'})
+
 @app.route('/api/keys/<platform>', methods=['GET'])
 @login_required
 def get_keys(platform):
@@ -326,4 +414,4 @@ def get_keys(platform):
 
 if __name__ == '__main__':
     ensure_credentials_dir()
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=False)

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { MdBarChart } from 'react-icons/md'
+import { MdBarChart, MdDelete } from 'react-icons/md'
 import { SiNetflix, SiCrunchyroll, SiSpotify } from 'react-icons/si'
 import { GiBoxingGlove } from 'react-icons/gi'
 import './Keys.css'
@@ -39,10 +39,28 @@ function Keys({ platform }) {
     used: keys.filter(k => k.status === 'used').length
   }
 
+  const handleDeleteAll = async () => {
+    if (!confirm(`Are you sure you want to delete ALL ${platform} keys? This cannot be undone!`)) return
+    
+    try {
+      const response = await fetch(`/api/keys/${platform}/delete-all`, {
+        method: 'DELETE'
+      })
+      const data = await response.json()
+      if (data.success) {
+        alert(data.message)
+        fetchKeys()
+      }
+    } catch (error) {
+      alert('Error deleting all keys: ' + error.message)
+    }
+  }
+
   return (
     <div className="keys">
       <div className="header">
         <h1><PlatformIcon className="title-icon" /> {platform.charAt(0).toUpperCase() + platform.slice(1)} Keys</h1>
+        <button className="btn btn-danger" onClick={handleDeleteAll}><MdDelete /> Delete All Keys</button>
       </div>
 
       <div className="stats-grid">

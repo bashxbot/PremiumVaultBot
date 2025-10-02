@@ -52,6 +52,15 @@ waitForPort = 5000
 [workflows.workflow.metadata]
 outputType = "webview"
 
+[[workflows.workflow]]
+name = "Web Admin Panel"
+author = 45657822
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python api_server.py"
+
 [[ports]]
 localPort = 5000
 externalPort = 80

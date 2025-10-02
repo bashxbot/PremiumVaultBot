@@ -617,7 +617,7 @@ async def execute_revoke(update: Update, context: ContextTypes.DEFAULT_TYPE):
     option = context.user_data.get('revoke_option')
 
     keys = load_json(KEYS_FILE)
-    
+
     revoked_count = 0
 
     if option == "last":
@@ -768,24 +768,37 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
 
         keys_text = "\n".join([f"<code>{k}</code>" for k in generated_keys])
 
-        result_text = (
-            "✅ <b>Keys Generated Successfully!</b>\n\n"
-            f"📦 <b>Platform:</b> {platform}\n"
-            f"🔢 <b>Generated Keys:</b> {count}\n"
-            f"🎯 <b>Uses per Key:</b> {uses}\n"
-            f"📝 <b>Account Type:</b> {account_text}\n\n"
-            f"🔑 <b>Generated Keys:</b>\n{keys_text}\n\n"
-            f"💡 <i>Tap on any key to copy it!</i>"
+        # Send platform image with keys
+        platform_images = {
+            'netflix': 'bot/assets/netflix.png',
+            'crunchyroll': 'bot/assets/crunchyroll.png',
+            'wwe': 'bot/assets/wwe.png',
+            'spotify': 'bot/assets/spotify.png'
+        }
+
+        image_path = platform_images.get(platform.lower())
+        caption_text = (
+            f"🔑 <b>Generated Keys for {platform.title()}</b>\n\n"
+            f"📊 Created {count} key(s):\n"
+            f"{keys_text}\n\n"
+            f"✅ Keys saved to database!\n"
+            f"💡 <i>Tap to copy!</i>"
         )
 
-        keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        await update.message.reply_text(
-            text=result_text,
-            reply_markup=reply_markup,
-            parse_mode='HTML'
-        )
+        if image_path and os.path.exists(image_path):
+            with open(image_path, 'rb') as photo:
+                await update.message.reply_photo(
+                    photo=photo,
+                    caption=caption_text,
+                    reply_markup=reply_markup,
+                    parse_mode='HTML'
+                )
+        else:
+            await update.message.reply_text(
+                caption_text,
+                reply_markup=reply_markup,
+                parse_mode='HTML'
+            )
 
     # Handle giveaway winner count
     elif context.user_data.get('giveaway_step') == 'winners':
