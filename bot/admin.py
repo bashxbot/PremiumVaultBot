@@ -944,7 +944,7 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
                 'spotify': 'bot/assets/spotify.png'
             }
 
-            image_path = platform_images.get(platform.lower())
+            image_path = platform_images.get(platform)
             caption_text = (
                 f"🎫 <b>{platform.title()} Credentials</b>\n\n"
                 f"📊 Retrieved {count} credential(s):\n"

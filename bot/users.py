@@ -579,24 +579,31 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     account_text = key_found.get('account_text', 'Premium Account')
 
     # Get platform logo
-    logo_path = os.path.join('bot/assets/platforms', f'{platform_name.lower()}.png')
+    platform_images = {
+        'Netflix': 'bot/assets/netflix.png',
+        'Crunchyroll': 'bot/assets/crunchyroll.png',
+        'WWE': 'bot/assets/wwe.png',
+        'Spotify': 'bot/assets/spotify.png'
+    }
+    logo_path = platform_images.get(platform_name)
     logo_caption = f"Here is your {platform_name} {account_text}!"
     
-    try:
-        with open(logo_path, 'rb') as logo_file:
+    if logo_path and os.path.exists(logo_path):
+        try:
+            with open(logo_path, 'rb') as logo_file:
             if update.message:
-                await update.message.reply_photo(
-                    photo=logo_file,
-                    caption=logo_caption,
-                    parse_mode='HTML')
-            elif update.callback_query:
-                await update.callback_query.message.reply_photo(
-                    photo=logo_file,
-                    caption=logo_caption,
-                    parse_mode='HTML')
-    except FileNotFoundError:
-        # If logo is not found, send text without photo
-        pass 
+                    await update.message.reply_photo(
+                        photo=logo_file,
+                        caption=logo_caption,
+                        parse_mode='HTML')
+                elif update.callback_query:
+                    await update.callback_query.message.reply_photo(
+                        photo=logo_file,
+                        caption=logo_caption,
+                        parse_mode='HTML')
+        except Exception as e:
+            # If logo sending fails, continue without it
+            pass 
 
     success_text = (
         "🎉 <b>Key Redeemed Successfully!</b> 🎉\n\n"
