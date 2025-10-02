@@ -1,5 +1,5 @@
 entrypoint = "main.py"
-modules = ["python-3.10", "python3"]
+modules = ["python-3.10", "python3", "nodejs-20"]
 
 hidden = [".pythonlibs"]
 
@@ -46,7 +46,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python admin_web.py"
+args = "python api_server.py"
 waitForPort = 5000
 
 [workflows.workflow.metadata]
@@ -57,5 +57,5 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 39101
+localPort = 33291
 externalPort = 3000

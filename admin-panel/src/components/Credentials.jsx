@@ -1,0 +1,250 @@
+import React, { useState, useEffect } from 'react'
+import './Credentials.css'
+
+function Credentials({ platform, refreshStats }) {
+  const [credentials, setCredentials] = useState([])
+  const [showModal, setShowModal] = useState(false)
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [editIndex, setEditIndex] = useState(null)
+  const [formData, setFormData] = useState({ email: '', password: '', status: 'active' })
+  const [uploadFile, setUploadFile] = useState(null)
+
+  useEffect(() => {
+    fetchCredentials()
+  }, [platform])
+
+  const fetchCredentials = async () => {
+    try {
+      const response = await fetch(`/api/credentials/${platform}`)
+      const data = await response.json()
+      if (data.success) {
+        setCredentials(data.credentials)
+      }
+    } catch (error) {
+      console.error('Error fetching credentials:', error)
+    }
+  }
+
+  const handleAdd = async (e) => {
+    e.preventDefault()
+    try {
+      const response = await fetch(`/api/credentials/${platform}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+      const data = await response.json()
+      if (data.success) {
+        alert(data.message)
+        fetchCredentials()
+        refreshStats()
+        setShowModal(false)
+        setFormData({ email: '', password: '', status: 'active' })
+      }
+    } catch (error) {
+      alert('Error adding credential: ' + error.message)
+    }
+  }
+
+  const handleEdit = async (e) => {
+    e.preventDefault()
+    try {
+      const response = await fetch(`/api/credentials/${platform}/${editIndex}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+      const data = await response.json()
+      if (data.success) {
+        alert(data.message)
+        fetchCredentials()
+        refreshStats()
+        setShowModal(false)
+        setEditIndex(null)
+        setFormData({ email: '', password: '', status: 'active' })
+      }
+    } catch (error) {
+      alert('Error updating credential: ' + error.message)
+    }
+  }
+
+  const handleDelete = async (index) => {
+    if (!confirm('Are you sure you want to delete this credential?')) return
+    
+    try {
+      const response = await fetch(`/api/credentials/${platform}/${index}`, {
+        method: 'DELETE'
+      })
+      const data = await response.json()
+      if (data.success) {
+        alert(data.message)
+        fetchCredentials()
+        refreshStats()
+      }
+    } catch (error) {
+      alert('Error deleting credential: ' + error.message)
+    }
+  }
+
+  const handleUpload = async (e) => {
+    e.preventDefault()
+    if (!uploadFile) return
+
+    const formData = new FormData()
+    formData.append('file', uploadFile)
+
+    try {
+      const response = await fetch(`/api/credentials/${platform}/upload`, {
+        method: 'POST',
+        body: formData
+      })
+      const data = await response.json()
+      if (data.success) {
+        alert(data.message)
+        fetchCredentials()
+        refreshStats()
+        setShowUploadModal(false)
+        setUploadFile(null)
+      }
+    } catch (error) {
+      alert('Error uploading credentials: ' + error.message)
+    }
+  }
+
+  const openEditModal = (index, cred) => {
+    setEditIndex(index)
+    setFormData({ email: cred.email, password: cred.password, status: cred.status })
+    setShowModal(true)
+  }
+
+  const openAddModal = () => {
+    setEditIndex(null)
+    setFormData({ email: '', password: '', status: 'active' })
+    setShowModal(true)
+  }
+
+  const platformEmoji = {
+    netflix: '🎬',
+    crunchyroll: '🍜',
+    spotify: '🎵',
+    wwe: '🤼'
+  }
+
+  return (
+    <div className="credentials">
+      <div className="header">
+        <h1>{platformEmoji[platform]} {platform.charAt(0).toUpperCase() + platform.slice(1)} Credentials</h1>
+        <div className="header-actions">
+          <button className="btn btn-success" onClick={openAddModal}>➕ Add Credential</button>
+          <button className="btn btn-primary" onClick={() => setShowUploadModal(true)}>📤 Upload from File</button>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Email</th>
+            <th>Password</th>
+            <th>Status</th>
+            <th>Created At</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {credentials.map((cred, index) => (
+            <tr key={index}>
+              <td>{index + 1}</td>
+              <td>{cred.email}</td>
+              <td>{cred.password}</td>
+              <td>
+                <span className={`badge badge-${cred.status}`}>{cred.status}</span>
+              </td>
+              <td>{cred.created_at ? cred.created_at.slice(0, 19) : 'N/A'}</td>
+              <td>
+                <button className="btn btn-sm btn-warning" onClick={() => openEditModal(index, cred)}>✏️</button>
+                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(index)}>🗑️</button>
+              </td>
+            </tr>
+          ))}
+          {credentials.length === 0 && (
+            <tr>
+              <td colSpan="6" style={{ textAlign: 'center', color: '#999' }}>
+                No credentials found. Add some to get started!
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+
+      {showModal && (
+        <div className="modal" onClick={() => setShowModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <span className="close" onClick={() => setShowModal(false)}>&times;</span>
+            <h2>{editIndex !== null ? 'Edit Credential' : 'Add New Credential'}</h2>
+            <form onSubmit={editIndex !== null ? handleEdit : handleAdd}>
+              <div className="form-group">
+                <label>Email</label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={e => setFormData({ ...formData, email: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Password</label>
+                <input
+                  type="text"
+                  value={formData.password}
+                  onChange={e => setFormData({ ...formData, password: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Status</label>
+                <select
+                  value={formData.status}
+                  onChange={e => setFormData({ ...formData, status: e.target.value })}
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="claimed">Claimed</option>
+                </select>
+              </div>
+              <button type="submit" className="btn btn-primary">
+                {editIndex !== null ? 'Update' : 'Add'} Credential
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showUploadModal && (
+        <div className="modal" onClick={() => setShowUploadModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <span className="close" onClick={() => setShowUploadModal(false)}>&times;</span>
+            <h2>Upload Credentials from File</h2>
+            <p className="upload-info">Upload a .txt file with credentials in format:<br />
+              <code>email@email.com:password123:active</code>
+            </p>
+            <form onSubmit={handleUpload}>
+              <div className="form-group">
+                <label>Select File</label>
+                <input
+                  type="file"
+                  accept=".txt"
+                  onChange={e => setUploadFile(e.target.files[0])}
+                  required
+                />
+              </div>
+              <button type="submit" className="btn btn-primary">Upload</button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default Credentials
