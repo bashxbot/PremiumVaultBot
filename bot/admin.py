@@ -888,16 +888,21 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
 
             credentials = load_json(credential_file)
 
-            # Get active credentials
+            # Separate credentials by status: active first, then claimed, then used/others
             active_creds = [c for c in credentials if c.get('status') == 'active']
+            claimed_creds = [c for c in credentials if c.get('status') == 'claimed']
+            other_creds = [c for c in credentials if c.get('status') not in ['active', 'claimed']]
+            
+            # Combine in priority order: active > claimed > others
+            available_creds = active_creds + claimed_creds + other_creds
 
-            if count > len(active_creds):
+            if count > len(available_creds):
                 keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 await update.message.reply_text(
                     f"❌ <b>Not Enough Credentials</b>\n\n"
-                    f"You requested {count} credentials but only {len(active_creds)} are available.\n\n"
-                    f"Please generate more credentials in the {platform}.json file first!",
+                    f"You requested {count} credentials but only {len(available_creds)} are available.\n\n"
+                    f"Please add more credentials in the admin panel first!",
                     reply_markup=reply_markup,
                     parse_mode='HTML'
                 )
@@ -905,14 +910,25 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
                 context.user_data.pop('cred_platform', None)
                 return
 
-            # Get the requested credentials
-            creds_to_send = active_creds[:count]
+            # Get the requested credentials (active ones first)
+            creds_to_send = available_creds[:count]
             creds_text = ""
+            
+            # Count active vs non-active
+            active_count = sum(1 for c in creds_to_send if c.get('status') == 'active')
+            non_active_count = count - active_count
 
             for i, cred in enumerate(creds_to_send, 1):
-                creds_text += f"\n<b>Account {i}:</b>\n"
+                status_emoji = "✅" if cred.get('status') == 'active' else "🔄" if cred.get('status') == 'claimed' else "❌"
+                creds_text += f"\n<b>Account {i}:</b> {status_emoji}\n"
                 creds_text += f"📧 Email: <code>{cred['email']}</code>\n"
                 creds_text += f"🔑 Password: <code>{cred['password']}</code>\n"
+                creds_text += f"📊 Status: {cred.get('status', 'unknown')}\n"
+            
+            # Add warning if non-active credentials are included
+            warning_text = ""
+            if non_active_count > 0:
+                warning_text = f"\n\n⚠️ <b>Warning:</b> {non_active_count} credential(s) are already claimed/used. Only {active_count} are fresh and ready to distribute."
 
             context.user_data.pop('cred_step', None)
             context.user_data.pop('cred_platform', None)
@@ -920,14 +936,36 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
             keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
-            await update.message.reply_text(
+            # Send platform image with credentials
+            platform_images = {
+                'netflix': 'bot/assets/netflix.png',
+                'crunchyroll': 'bot/assets/crunchyroll.png',
+                'wwe': 'bot/assets/wwe.png',
+                'spotify': 'bot/assets/spotify.png'
+            }
+
+            image_path = platform_images.get(platform.lower())
+            caption_text = (
                 f"🎫 <b>{platform.title()} Credentials</b>\n\n"
-                f"📊 Generated {count} credential(s):\n"
-                f"{creds_text}\n\n"
-                f"💡 <i>Tap to copy!</i>",
-                reply_markup=reply_markup,
-                parse_mode='HTML'
+                f"📊 Retrieved {count} credential(s):\n"
+                f"{creds_text}{warning_text}\n\n"
+                f"💡 <i>Tap to copy!</i>"
             )
+
+            if image_path and os.path.exists(image_path):
+                with open(image_path, 'rb') as photo:
+                    await update.message.reply_photo(
+                        photo=photo,
+                        caption=caption_text,
+                        reply_markup=reply_markup,
+                        parse_mode='HTML'
+                    )
+            else:
+                await update.message.reply_text(
+                    caption_text,
+                    reply_markup=reply_markup,
+                    parse_mode='HTML'
+                )
         except ValueError:
             keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
