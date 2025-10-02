@@ -154,5 +154,17 @@
     "redeemed_at": null,
     "redeemed_by": [],
     "used_by": []
+  },
+  {
+    "key": "CRUNCHYROLL-4ZYC-C2V9-ZVMT",
+    "platform": "Crunchyroll",
+    "uses": 2,
+    "remaining_uses": 2,
+    "account_text": "K",
+    "status": "active",
+    "created_at": "2025-10-02T16:22:18.317256",
+    "redeemed_at": null,
+    "redeemed_by": [],
+    "used_by": []
   }
 ]

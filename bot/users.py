@@ -578,33 +578,7 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     platform_name = key_found.get('platform', 'Unknown')
     account_text = key_found.get('account_text', 'Premium Account')
 
-    # Get platform logo
-    platform_images = {
-        'Netflix': 'assets/netflix.png',
-        'Crunchyroll': 'assets/crunchyroll.png',
-        'WWE': 'assets/wwe.png',
-        'Spotify': 'assets/spotify.png'
-    }
-    logo_path = platform_images.get(platform_name)
-    logo_caption = f"Here is your {platform_name} {account_text}!"
-    
-    if logo_path and os.path.exists(logo_path):
-        try:
-            with open(logo_path, 'rb') as logo_file:
-                if update.message:
-                    await update.message.reply_photo(
-                        photo=logo_file,
-                        caption=logo_caption,
-                        parse_mode='HTML')
-                elif update.callback_query:
-                    await update.callback_query.message.reply_photo(
-                        photo=logo_file,
-                        caption=logo_caption,
-                        parse_mode='HTML')
-        except Exception as e:
-            # If logo sending fails, continue without it
-            pass 
-
+    # Prepare success message
     success_text = (
         "🎉 <b>Key Redeemed Successfully!</b> 🎉\n\n"
         f"🎁 <b>Platform:</b> {platform_name}\n"
@@ -623,14 +597,51 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    if update.message:
-        await update.message.reply_text(text=success_text,
-                                        reply_markup=reply_markup,
-                                        parse_mode='HTML')
-    elif update.callback_query:
-        await update.callback_query.message.reply_text(text=success_text,
-                                                      reply_markup=reply_markup,
-                                                      parse_mode='HTML')
+    # Get platform logo
+    platform_images = {
+        'Netflix': 'assets/netflix.png',
+        'Crunchyroll': 'assets/crunchyroll.png',
+        'WWE': 'assets/wwe.png',
+        'Spotify': 'assets/spotify.png'
+    }
+    logo_path = platform_images.get(platform_name)
+    
+    # Send with logo if available, otherwise send as text
+    if logo_path and os.path.exists(logo_path):
+        try:
+            with open(logo_path, 'rb') as logo_file:
+                if update.message:
+                    await update.message.reply_photo(
+                        photo=logo_file,
+                        caption=success_text,
+                        reply_markup=reply_markup,
+                        parse_mode='HTML')
+                elif update.callback_query:
+                    await update.callback_query.message.reply_photo(
+                        photo=logo_file,
+                        caption=success_text,
+                        reply_markup=reply_markup,
+                        parse_mode='HTML')
+        except Exception as e:
+            # If logo sending fails, send as text
+            if update.message:
+                await update.message.reply_text(text=success_text,
+                                                reply_markup=reply_markup,
+                                                parse_mode='HTML')
+            elif update.callback_query:
+                await update.callback_query.message.reply_text(text=success_text,
+                                                              reply_markup=reply_markup,
+                                                              parse_mode='HTML')
+    else:
+        # No logo available, send as text
+        if update.message:
+            await update.message.reply_text(text=success_text,
+                                            reply_markup=reply_markup,
+                                            parse_mode='HTML')
+        elif update.callback_query:
+            await update.callback_query.message.reply_text(text=success_text,
+                                                          reply_markup=reply_markup,
+                                                          parse_mode='HTML')
 
 
 async def participate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
