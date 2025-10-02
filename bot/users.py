@@ -591,7 +591,7 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     if logo_path and os.path.exists(logo_path):
         try:
             with open(logo_path, 'rb') as logo_file:
-            if update.message:
+                if update.message:
                     await update.message.reply_photo(
                         photo=logo_file,
                         caption=logo_caption,
