@@ -14,10 +14,10 @@ def get_project_root():
 
 # Required channels
 REQUIRED_CHANNELS = [
-    "https://t.me/+gxVbPeU842ZkNmU0",
-    "https://t.me/+yiYViAOknS9lZjlk",
-    "https://t.me/+RKjw0ypr_e9lZTI0",
-    "https://t.me/accountvaultportal"
+    "+gxVbPeU842ZkNmU0",
+    "+yiYViAOknS9lZjlk",
+    "+RKjw0ypr_e9lZTI0",
+    "accountvaultportal"
 ]
 
 # Database files
@@ -130,26 +130,19 @@ async def user_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     has_joined = await check_channel_membership(update, context)
 
     if not has_joined:
-        channel_buttons = []
-        for channel in REQUIRED_CHANNELS:
-            channel_buttons.append([
-                InlineKeyboardButton(f"📢 Join {channel}",
-                                     url=f"https://t.me/{channel[1:]}")
-            ])
-
-        channel_buttons.append([
-            InlineKeyboardButton("✅ I Have Joined, Continue",
-                                 callback_data="user_verify_channels")
-        ])
+        channel_buttons = [
+            [InlineKeyboardButton("🔗 Join Channel 1", url="https://t.me/+gxVbPeU842ZkNmU0")],
+            [InlineKeyboardButton("🔗 Join Channel 2", url="https://t.me/+yiYViAOknS9lZjlk")],
+            [InlineKeyboardButton("🔗 Join Channel 3", url="https://t.me/+RKjw0ypr_e9lZTI0")],
+            [InlineKeyboardButton("🔗 Join Channel 4", url="https://t.me/accountvaultportal")],
+            [InlineKeyboardButton("✅ I Joined Both, Continue", callback_data="user_verify_channels")]
+        ]
 
         reply_markup = InlineKeyboardMarkup(channel_buttons)
 
         welcome_text = (
-            "🎮 <b>Welcome to Premium Vault Bot!</b> 🎮\n\n"
-            f"👋 Hello {user.mention_html()}!\n\n"
-            "🎁 <b>Get Premium Accounts for FREE!</b>\n\n"
-            "🔐 To access the bot, you must join all our channels:\n\n"
-            "📢 Please join all channels and click the button below:")
+            "❌ <b>Still Need to Join!</b>\n\n"
+            "📢 Please join our channel first, then try again.")
 
         await update.message.reply_text(text=welcome_text,
                                         reply_markup=reply_markup,
