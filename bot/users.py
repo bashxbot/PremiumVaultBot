@@ -135,7 +135,7 @@ async def user_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🔗 Join Channel Main", url="https://t.me/+RKjw0ypr_e9lZTI0")],
             [InlineKeyboardButton("🔗 Join Channel Backup", url="https://t.me/+yiYViAOknS9lZjlk")],
             [InlineKeyboardButton("🔗 Join Channel Config", url="https://t.me/+gxVbPeU842ZkNmU0")],
-            [InlineKeyboardButton("✅ I Joined Both, Continue", callback_data="user_verify_channels")]
+            [InlineKeyboardButton("✅ I have joined all, continue", callback_data="user_verify_channels")]
         ]
 
         reply_markup = InlineKeyboardMarkup(channel_buttons)
