@@ -82,5 +82,53 @@
     "redeemed_at": null,
     "redeemed_by": [],
     "used_by": []
+  },
+  {
+    "key": "CRUNCHYROLL-HCJJ-KE9N-A6UU",
+    "platform": "Crunchyroll",
+    "uses": 1,
+    "remaining_uses": 1,
+    "account_text": "1",
+    "status": "active",
+    "created_at": "2025-10-02T07:40:09.635564",
+    "redeemed_at": null,
+    "redeemed_by": [],
+    "used_by": []
+  },
+  {
+    "key": "CRUNCHYROLL-RMVN-GN1G-Z389",
+    "platform": "Crunchyroll",
+    "uses": 1,
+    "remaining_uses": 1,
+    "account_text": "1",
+    "status": "active",
+    "created_at": "2025-10-02T07:40:09.635584",
+    "redeemed_at": null,
+    "redeemed_by": [],
+    "used_by": []
+  },
+  {
+    "key": "CRUNCHYROLL-MWKN-33P2-QF86",
+    "platform": "Crunchyroll",
+    "uses": 1,
+    "remaining_uses": 1,
+    "account_text": "1",
+    "status": "active",
+    "created_at": "2025-10-02T07:40:09.635597",
+    "redeemed_at": null,
+    "redeemed_by": [],
+    "used_by": []
+  },
+  {
+    "key": "CRUNCHYROLL-COX2-4ZHE-1I3D",
+    "platform": "Crunchyroll",
+    "uses": 1,
+    "remaining_uses": 1,
+    "account_text": "1",
+    "status": "active",
+    "created_at": "2025-10-02T07:40:09.635611",
+    "redeemed_at": null,
+    "redeemed_by": [],
+    "used_by": []
   }
 ]

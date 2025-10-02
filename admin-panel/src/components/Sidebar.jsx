@@ -1,11 +1,14 @@
 import React, { useState } from 'react'
+import { MdDashboard, MdCreditCard, MdVpnKey, MdChevronRight, MdExpandMore } from 'react-icons/md'
+import { SiNetflix, SiCrunchyroll, SiSpotify } from 'react-icons/si'
+import { GiWrestling } from 'react-icons/gi'
 import './Sidebar.css'
 
-const platformEmoji = {
-  netflix: '🎬',
-  crunchyroll: '🍜',
-  spotify: '🎵',
-  wwe: '🤼'
+const platformIcons = {
+  netflix: SiNetflix,
+  crunchyroll: SiCrunchyroll,
+  spotify: SiSpotify,
+  wwe: GiWrestling
 }
 
 function Sidebar({ activeView, setActiveView, stats }) {
@@ -20,7 +23,7 @@ function Sidebar({ activeView, setActiveView, stats }) {
   return (
     <div className="sidebar">
       <div className="sidebar-header">
-        <h2>🎮 Admin Panel</h2>
+        <h2><MdDashboard className="header-icon" /> Admin Panel</h2>
       </div>
 
       <div className="sidebar-section">
@@ -28,23 +31,26 @@ function Sidebar({ activeView, setActiveView, stats }) {
           className={`section-header ${expandedSection === 'credentials' ? 'active' : ''}`}
           onClick={() => toggleSection('credentials')}
         >
-          <span>📋 Credentials</span>
-          <span className="arrow">{expandedSection === 'credentials' ? '▼' : '▶'}</span>
+          <span><MdCreditCard className="section-icon" /> Credentials</span>
+          <span className="arrow">{expandedSection === 'credentials' ? <MdExpandMore /> : <MdChevronRight />}</span>
         </div>
         {expandedSection === 'credentials' && (
           <div className="section-items">
-            {platforms.map(platform => (
-              <div
-                key={platform}
-                className={`section-item ${activeView.type === 'credentials' && activeView.platform === platform ? 'active' : ''}`}
-                onClick={() => setActiveView({ type: 'credentials', platform })}
-              >
-                <span>{platformEmoji[platform]} {platform.charAt(0).toUpperCase() + platform.slice(1)}</span>
-                {stats && stats.stats[platform] && (
-                  <span className="count">{stats.stats[platform].active}/{stats.stats[platform].total}</span>
-                )}
-              </div>
-            ))}
+            {platforms.map(platform => {
+              const PlatformIcon = platformIcons[platform]
+              return (
+                <div
+                  key={platform}
+                  className={`section-item ${activeView.type === 'credentials' && activeView.platform === platform ? 'active' : ''}`}
+                  onClick={() => setActiveView({ type: 'credentials', platform })}
+                >
+                  <span><PlatformIcon className="platform-icon" /> {platform.charAt(0).toUpperCase() + platform.slice(1)}</span>
+                  {stats && stats.stats[platform] && (
+                    <span className="count">{stats.stats[platform].active}/{stats.stats[platform].total}</span>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
@@ -54,20 +60,23 @@ function Sidebar({ activeView, setActiveView, stats }) {
           className={`section-header ${expandedSection === 'keys' ? 'active' : ''}`}
           onClick={() => toggleSection('keys')}
         >
-          <span>🔑 Keys</span>
-          <span className="arrow">{expandedSection === 'keys' ? '▼' : '▶'}</span>
+          <span><MdVpnKey className="section-icon" /> Keys</span>
+          <span className="arrow">{expandedSection === 'keys' ? <MdExpandMore /> : <MdChevronRight />}</span>
         </div>
         {expandedSection === 'keys' && (
           <div className="section-items">
-            {platforms.map(platform => (
-              <div
-                key={platform}
-                className={`section-item ${activeView.type === 'keys' && activeView.platform === platform ? 'active' : ''}`}
-                onClick={() => setActiveView({ type: 'keys', platform })}
-              >
-                <span>{platformEmoji[platform]} {platform.charAt(0).toUpperCase() + platform.slice(1)}</span>
-              </div>
-            ))}
+            {platforms.map(platform => {
+              const PlatformIcon = platformIcons[platform]
+              return (
+                <div
+                  key={platform}
+                  className={`section-item ${activeView.type === 'keys' && activeView.platform === platform ? 'active' : ''}`}
+                  onClick={() => setActiveView({ type: 'keys', platform })}
+                >
+                  <span><PlatformIcon className="platform-icon" /> {platform.charAt(0).toUpperCase() + platform.slice(1)}</span>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>

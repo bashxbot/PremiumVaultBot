@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react'
+import { MdBarChart } from 'react-icons/md'
+import { SiNetflix, SiCrunchyroll, SiSpotify } from 'react-icons/si'
+import { GiWrestling } from 'react-icons/gi'
 import './Keys.css'
 
 function Keys({ platform }) {
@@ -20,12 +23,14 @@ function Keys({ platform }) {
     }
   }
 
-  const platformEmoji = {
-    netflix: '🎬',
-    crunchyroll: '🍜',
-    spotify: '🎵',
-    wwe: '🤼'
+  const platformIcons = {
+    netflix: SiNetflix,
+    crunchyroll: SiCrunchyroll,
+    spotify: SiSpotify,
+    wwe: GiWrestling
   }
+
+  const PlatformIcon = platformIcons[platform]
 
   const stats = {
     total: keys.length,
@@ -37,7 +42,7 @@ function Keys({ platform }) {
   return (
     <div className="keys">
       <div className="header">
-        <h1>{platformEmoji[platform]} {platform.charAt(0).toUpperCase() + platform.slice(1)} Keys</h1>
+        <h1><PlatformIcon className="title-icon" /> {platform.charAt(0).toUpperCase() + platform.slice(1)} Keys</h1>
       </div>
 
       <div className="stats-grid">

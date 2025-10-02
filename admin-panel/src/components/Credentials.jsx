@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react'
+import { MdAdd, MdUploadFile, MdEdit, MdDelete } from 'react-icons/md'
+import { SiNetflix, SiCrunchyroll, SiSpotify } from 'react-icons/si'
+import { GiWrestling } from 'react-icons/gi'
 import './Credentials.css'
 
 function Credentials({ platform, refreshStats }) {
@@ -123,20 +126,22 @@ function Credentials({ platform, refreshStats }) {
     setShowModal(true)
   }
 
-  const platformEmoji = {
-    netflix: '🎬',
-    crunchyroll: '🍜',
-    spotify: '🎵',
-    wwe: '🤼'
+  const platformIcons = {
+    netflix: SiNetflix,
+    crunchyroll: SiCrunchyroll,
+    spotify: SiSpotify,
+    wwe: GiWrestling
   }
+
+  const PlatformIcon = platformIcons[platform]
 
   return (
     <div className="credentials">
       <div className="header">
-        <h1>{platformEmoji[platform]} {platform.charAt(0).toUpperCase() + platform.slice(1)} Credentials</h1>
+        <h1><PlatformIcon className="title-icon" /> {platform.charAt(0).toUpperCase() + platform.slice(1)} Credentials</h1>
         <div className="header-actions">
-          <button className="btn btn-success" onClick={openAddModal}>➕ Add Credential</button>
-          <button className="btn btn-primary" onClick={() => setShowUploadModal(true)}>📤 Upload from File</button>
+          <button className="btn btn-success" onClick={openAddModal}><MdAdd /> Add Credential</button>
+          <button className="btn btn-primary" onClick={() => setShowUploadModal(true)}><MdUploadFile /> Upload from File</button>
         </div>
       </div>
 
@@ -162,8 +167,8 @@ function Credentials({ platform, refreshStats }) {
               </td>
               <td>{cred.created_at ? cred.created_at.slice(0, 19) : 'N/A'}</td>
               <td>
-                <button className="btn btn-sm btn-warning" onClick={() => openEditModal(index, cred)}>✏️</button>
-                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(index)}>🗑️</button>
+                <button className="btn btn-sm btn-warning" onClick={() => openEditModal(index, cred)}><MdEdit /></button>
+                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(index)}><MdDelete /></button>
               </td>
             </tr>
           ))}
