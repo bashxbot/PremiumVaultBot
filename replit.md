@@ -93,7 +93,25 @@ Preferred communication style: Simple, everyday language.
 - **ADMIN_IDS**: Comma-separated list of Telegram user IDs with admin privileges
 - **Fallback**: Hardcoded bot token exists but environment variable usage recommended for security
 
-### Future Considerations
-- Web-based admin panel mentioned in requirements but not yet implemented
-- Would require additional dependencies (web framework like Flask/FastAPI)
-- Would need credential file editing interface
+### Web Admin Panel
+- **Technology**: React (Vite), Flask backend
+- **Purpose**: Web-based interface for managing credentials and viewing keys
+- **Features**:
+  - Credentials management (add, edit, delete, bulk upload)
+  - Keys viewing and statistics
+  - Platform filtering (Netflix, Crunchyroll, Spotify, WWE)
+  - Session-based authentication
+- **UI/UX**:
+  - Modern gradient design with smooth animations
+  - Sidebar navigation with collapsible sections
+  - Animated transitions: fadeIn, slideIn, bounce, pulse, shimmer effects
+  - Responsive tables with hover states
+  - Modal dialogs for forms with backdrop blur
+  - Icon-based UI using react-icons (Material Design, Simple Icons, Game Icons)
+- **Recent Updates (Oct 2025)**:
+  - Fixed stats loading to handle unauthenticated states gracefully
+  - Added comprehensive CSS animations for improved user experience
+  - Enhanced buttons with gradient backgrounds and hover effects
+  - Implemented staggered table row animations
+  - Replaced all emojis with professional icon components
+  - Optimized for performance using transform/opacity animations
