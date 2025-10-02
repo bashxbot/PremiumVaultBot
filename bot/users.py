@@ -495,11 +495,37 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     # Update key
     key_found['remaining_uses'] = key_found.get('remaining_uses', 1) - 1
     key_found['used_by'].append(user_id)
+    key_found['redeemed_at'] = datetime.now().isoformat()
+    
+    # Add to redeemed_by list for detailed tracking
+    if 'redeemed_by' not in key_found:
+        key_found['redeemed_by'] = []
+    
+    key_found['redeemed_by'].append({
+        'user_id': user_id,
+        'username': update.effective_user.username,
+        'redeemed_at': datetime.now().isoformat()
+    })
 
     if key_found['remaining_uses'] <= 0:
         key_found['status'] = 'used'
 
     save_json(KEYS_FILE, keys)
+    
+    # Also update platform-specific keys file
+    platform = key_found.get('platform', '').lower()
+    platform_keys_file = f'keys/{platform}.json'
+    if os.path.exists(platform_keys_file):
+        platform_keys = load_json(platform_keys_file)
+        for pk in platform_keys:
+            if pk['key'] == key_code:
+                pk['remaining_uses'] = key_found['remaining_uses']
+                pk['used_by'] = key_found['used_by']
+                pk['redeemed_at'] = key_found['redeemed_at']
+                pk['redeemed_by'] = key_found['redeemed_by']
+                pk['status'] = key_found['status']
+                break
+        save_json(platform_keys_file, platform_keys)
 
     # Update user data
     if user_id not in users:
@@ -543,7 +569,7 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
 
 
 async def redeem_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /redeem command"""
+    """Handle /redeem command with optional key parameter"""
     user_id = update.effective_user.id
     user = update.effective_user
     username = user.username
@@ -552,9 +578,12 @@ async def redeem_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Check if user is banned
     if is_banned(user_id, username):
+        keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text(
             "🚫 <b>Access Denied</b>\n\n"
             "❌ You have been banned from using this bot.",
+            reply_markup=reply_markup,
             parse_mode='HTML')
         return
 
@@ -565,17 +594,27 @@ async def redeem_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     has_joined = is_admin(user_id) or await check_channel_membership(
         update, context)
     if not has_joined:
+        keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text(
             "⚠️ <b>Access Restricted</b>\n\n"
             "❌ You must join all required channels first!\n\n"
             "Use /start to see the channels and join them.",
+            reply_markup=reply_markup,
             parse_mode='HTML')
         return
 
-    await update.message.reply_text(
-        text="🎁 <b>Redeem Key</b>\n\n"
-        "🔑 Please send your redemption key in the format:\n"
-        "<code>PLATFORM-XXXX-XXXX-XXXX</code>\n\n"
-        "📝 Example: <code>NETFLIX-A2D8-FA2F-VV82</code>",
-        parse_mode='HTML')
-    context.user_data['redeem_step'] = 'key'
+    # Check if key was provided as argument
+    if context.args and len(context.args) > 0:
+        key_code = context.args[0].strip().upper()
+        await redeem_key(update, context, key_code)
+    else:
+        keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(
+            text="🎁 <b>Redeem Key</b>\n\n"
+            "🔑 Please use the command with your key:\n"
+            "<code>/redeem PLATFORM-XXXX-XXXX-XXXX</code>\n\n"
+            "📝 Example: <code>/redeem NETFLIX-A2D8-FA2F-VV82</code>",
+            reply_markup=reply_markup,
+            parse_mode='HTML')
