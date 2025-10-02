@@ -221,10 +221,10 @@ async def handle_user_callback(update: Update,
     elif data == "user_redeem_key":
         await query.answer()
         context.user_data['redeem_step'] = 'key'
-        
+
         keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        
+
         await query.edit_message_text(
             text="🎁 <b>Redeem Key</b>\n\n"
             "🔑 Please send your redemption key in the format:\n"
@@ -241,7 +241,7 @@ async def handle_user_callback(update: Update,
 
     elif data == "user_join_giveaway":
         await join_giveaway(update, context)
-    
+
     else:
         await query.answer("❌ Unknown action!", show_alert=True)
 
@@ -398,16 +398,17 @@ async def handle_user_message(update: Update,
     # Import is_admin from admin module
     from admin import is_admin
 
-    # Check channel membership (skip for admins)
-    has_joined = is_admin(user_id) or await check_channel_membership(
-        update, context)
-    if not has_joined:
-        await update.message.reply_text(
-            "⚠️ <b>Access Restricted</b>\n\n"
-            "❌ You must join all required channels first!\n\n"
-            "Use /start to see the channels and join them.",
-            parse_mode='HTML')
-        return
+    # Skip channel check entirely for admins
+    if not is_admin(user_id):
+        # Check channel membership for regular users
+        has_joined = await check_channel_membership(update, context)
+        if not has_joined:
+            await update.message.reply_text(
+                "⚠️ <b>Access Restricted</b>\n\n"
+                "❌ You must join all required channels first!\n\n"
+                "Use /start to see the channels and join them.",
+                parse_mode='HTML')
+            return
 
     # Handle key redemption
     if context.user_data.get('redeem_step') == 'key':
@@ -499,11 +500,11 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     key_found['remaining_uses'] = key_found.get('remaining_uses', 1) - 1
     key_found['used_by'].append(user_id)
     key_found['redeemed_at'] = datetime.now().isoformat()
-    
+
     # Add to redeemed_by list for detailed tracking
     if 'redeemed_by' not in key_found:
         key_found['redeemed_by'] = []
-    
+
     key_found['redeemed_by'].append({
         'user_id': user_id,
         'username': update.effective_user.username,
@@ -514,7 +515,7 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
         key_found['status'] = 'used'
 
     save_json(KEYS_FILE, keys)
-    
+
     # Also update platform-specific keys file
     platform = key_found.get('platform', '').lower()
     platform_keys_file = f'keys/{platform}.json'
@@ -593,19 +594,20 @@ async def redeem_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Import is_admin from admin module
     from admin import is_admin
 
-    # Check channel membership (skip for admins)
-    has_joined = is_admin(user_id) or await check_channel_membership(
-        update, context)
-    if not has_joined:
-        keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text(
-            "⚠️ <b>Access Restricted</b>\n\n"
-            "❌ You must join all required channels first!\n\n"
-            "Use /start to see the channels and join them.",
-            reply_markup=reply_markup,
-            parse_mode='HTML')
-        return
+    # Skip channel check entirely for admins
+    if not is_admin(user_id):
+        # Check channel membership for regular users
+        has_joined = await check_channel_membership(update, context)
+        if not has_joined:
+            keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text(
+                "⚠️ <b>Access Restricted</b>\n\n"
+                "❌ You must join all required channels first!\n\n"
+                "Use /start to see the channels and join them.",
+                reply_markup=reply_markup,
+                parse_mode='HTML')
+            return
 
     # Check if key was provided as argument
     if context.args and len(context.args) > 0:
