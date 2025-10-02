@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { MdDashboard, MdCreditCard, MdVpnKey, MdChevronRight, MdExpandMore } from 'react-icons/md'
+import { MdDashboard, MdCreditCard, MdVpnKey, MdChevronRight, MdExpandMore, MdLogout } from 'react-icons/md'
 import { SiNetflix, SiCrunchyroll, SiSpotify } from 'react-icons/si'
 import { GiBoxingGlove } from 'react-icons/gi'
 import './Sidebar.css'
@@ -11,10 +11,8 @@ const platformIcons = {
   wwe: GiBoxingGlove
 }
 
-function Sidebar({ activeView, setActiveView, stats }) {
+function Sidebar({ activeView, setActiveView, stats, platforms, totalKeys, activeKeys, authenticated, userRole, username, onLogout }) {
   const [expandedSection, setExpandedSection] = useState('credentials')
-
-  const platforms = ['netflix', 'crunchyroll', 'spotify', 'wwe']
 
   const toggleSection = (section) => {
     setExpandedSection(expandedSection === section ? null : section)
@@ -27,7 +25,7 @@ function Sidebar({ activeView, setActiveView, stats }) {
       </div>
 
       <div className="sidebar-section">
-        <div 
+        <div
           className={`section-header ${expandedSection === 'credentials' ? 'active' : ''}`}
           onClick={() => toggleSection('credentials')}
         >
@@ -56,7 +54,7 @@ function Sidebar({ activeView, setActiveView, stats }) {
       </div>
 
       <div className="sidebar-section">
-        <div 
+        <div
           className={`section-header ${expandedSection === 'keys' ? 'active' : ''}`}
           onClick={() => toggleSection('keys')}
         >
@@ -80,6 +78,22 @@ function Sidebar({ activeView, setActiveView, stats }) {
           </div>
         )}
       </div>
+
+      {authenticated && (
+        <div className="sidebar-section user-info">
+          <div className="section-header">
+            <span><MdPerson className="section-icon" /> {username}</span>
+          </div>
+          {userRole === 'admin' && (
+            <div className="section-item" onClick={() => setActiveView({ type: 'users' })}>
+              <span>Users</span>
+            </div>
+          )}
+          <div className="section-item logout-button" onClick={onLogout}>
+            <span><MdLogout className="section-icon" /> Logout</span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
