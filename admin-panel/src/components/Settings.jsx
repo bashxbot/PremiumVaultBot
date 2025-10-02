@@ -37,9 +37,9 @@ function Settings({ userRole, username }) {
           telegramUserId: formData.telegramUserId
         })
       })
-      
+
       const data = await response.json()
-      
+
       if (data.success) {
         setMessage('Telegram User ID updated successfully. You can now use the bot as an admin.')
         setCurrentTelegramId(formData.telegramUserId)
@@ -71,9 +71,9 @@ function Settings({ userRole, username }) {
           newPassword: formData.newPassword
         })
       })
-      
+
       const data = await response.json()
-      
+
       if (data.success) {
         setMessage('Password changed successfully')
         setFormData({ currentPassword: '', newUsername: '', newPassword: '', confirmPassword: '' })
@@ -98,9 +98,9 @@ function Settings({ userRole, username }) {
           newUsername: formData.newUsername
         })
       })
-      
+
       const data = await response.json()
-      
+
       if (data.success) {
         setMessage('Username changed successfully. Please log in again.')
         setTimeout(() => window.location.reload(), 2000)
@@ -124,12 +124,31 @@ function Settings({ userRole, username }) {
 
         <div className="settings-section">
           <h2><MdTelegram /> Telegram Bot Admin Access</h2>
+          <div className="info-box" style={{
+            background: 'linear-gradient(135deg, rgba(0, 136, 204, 0.1), rgba(0, 102, 255, 0.1))',
+            border: '1px solid rgba(0, 136, 204, 0.3)',
+            borderRadius: '8px',
+            padding: '15px',
+            marginBottom: '20px'
+          }}>
+            <p style={{ margin: '0 0 10px 0', fontSize: '14px' }}>
+              <strong>🎯 Link Your Telegram Account</strong>
+            </p>
+            <p style={{ margin: '0 0 5px 0', fontSize: '13px' }}>
+              Current Telegram User ID: <strong>{currentTelegramId || 'Not set'}</strong>
+            </p>
+            <p style={{ margin: '0', fontSize: '13px', color: 'rgba(255, 255, 255, 0.7)' }}>
+              {currentTelegramId ? '✅ You can now use admin commands in the Telegram bot!' : '⚠️ Set your ID to access admin features in the bot'}
+            </p>
+          </div>
           <p className="section-description">
-            Current Telegram User ID: <strong>{currentTelegramId || 'Not set'}</strong>
+            <strong>How to get your Telegram User ID:</strong>
           </p>
-          <p className="section-description">
-            Set your Telegram User ID to get admin access in the bot. You can find your ID by messaging <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer">@userinfobot</a> on Telegram.
-          </p>
+          <ol className="section-description" style={{ paddingLeft: '20px', marginTop: '10px' }}>
+            <li>Open Telegram and search for <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" style={{ color: '#0088cc' }}>@userinfobot</a></li>
+            <li>Send <code>/start</code> to the bot</li>
+            <li>Copy your user ID number and paste it below</li>
+          </ol>
           <form onSubmit={handleChangeTelegramId}>
             <div className="form-group">
               <label>Telegram User ID</label>
