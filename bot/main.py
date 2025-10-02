@@ -12,7 +12,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 from admin import (admin_start, handle_admin_callback, handle_admin_message,
                    is_admin, ensure_data_files)
 from users import (user_start, handle_user_callback, handle_user_message,
-                   redeem_command)
+                   redeem_command, participate_command)
 
 # Bot token - load from environment variable or use the provided token
 import os
@@ -84,6 +84,7 @@ def main() -> None:
     # Add command handlers
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("redeem", redeem_command))
+    application.add_handler(CommandHandler("participate", participate_command))
 
     # Add callback query handler
     application.add_handler(CallbackQueryHandler(handle_callback_query))

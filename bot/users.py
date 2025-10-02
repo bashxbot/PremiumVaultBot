@@ -444,11 +444,15 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
             key_found = key
             break
 
+    keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
     if not key_found:
         await update.message.reply_text(
             "❌ <b>Invalid Key</b>\n\n"
             "The key you entered is not valid.\n\n"
             "Please check and try again!",
+            reply_markup=reply_markup,
             parse_mode='HTML')
         return
 
@@ -459,6 +463,7 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
             "❌ <b>Key Already Used</b>\n\n"
             "This key has already been redeemed.\n\n"
             "Try another key!",
+            reply_markup=reply_markup,
             parse_mode='HTML')
         return
 
@@ -468,6 +473,7 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
             "⏰ <b>Key Expired</b>\n\n"
             "This key has expired.\n\n"
             "Please use a valid key!",
+            reply_markup=reply_markup,
             parse_mode='HTML')
         return
 
@@ -477,6 +483,7 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
             "⚠️ <b>Already Redeemed</b>\n\n"
             "You've already redeemed this key!\n\n"
             "Try a different key.",
+            reply_markup=reply_markup,
             parse_mode='HTML')
         return
 
@@ -496,17 +503,25 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     credentials = load_json(credential_file)
     available_creds = [c for c in credentials if c.get('status') == 'active']
 
+    keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
+    reply_markup_error = InlineKeyboardMarkup(keyboard)
+
     if not available_creds:
         await update.message.reply_text(
             "❌ <b>No Accounts Available</b>\n\n"
             "All accounts for this platform are currently used.\n\n"
             "Please try again later!",
+            reply_markup=reply_markup_error,
             parse_mode='HTML')
         return
 
-    # Give credential to user
+    # Give credential to user - mark as claimed immediately
     credential = available_creds[0]
-    credential['status'] = 'used'
+    credential['status'] = 'claimed'
+    credential['claimed_by'] = user_id
+    credential['claimed_at'] = datetime.now().isoformat()
+    
+    # Save immediately to prevent double allocation
     save_json(credential_file, credentials)
 
     # Update key
@@ -584,6 +599,83 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     await update.message.reply_text(text=success_text,
                                     reply_markup=reply_markup,
                                     parse_mode='HTML')
+
+
+async def participate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /participate command to join active giveaway"""
+    user_id = str(update.effective_user.id)
+    user = update.effective_user
+    username = user.username
+
+    ensure_data_files()
+
+    # Check if user is banned
+    if is_banned(int(user_id), username):
+        keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(
+            "🚫 <b>Access Denied</b>\n\n"
+            "❌ You have been banned from using this bot.",
+            reply_markup=reply_markup,
+            parse_mode='HTML')
+        return
+
+    # Import is_admin from admin module
+    from admin import is_admin
+
+    # Skip channel check entirely for admins
+    if not is_admin(int(user_id)):
+        # Check channel membership for regular users
+        has_joined = await check_channel_membership(update, context)
+        if not has_joined:
+            keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text(
+                "⚠️ <b>Access Restricted</b>\n\n"
+                "❌ You must join all required channels first!\n\n"
+                "Use /start to see the channels and join them.",
+                reply_markup=reply_markup,
+                parse_mode='HTML')
+            return
+
+    giveaway = load_json(GIVEAWAY_FILE)
+
+    keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    if not giveaway.get('active'):
+        await update.message.reply_text(
+            "❌ <b>No Active Giveaway</b>\n\n"
+            "There's no active giveaway right now.\n\n"
+            "Check back later!",
+            reply_markup=reply_markup,
+            parse_mode='HTML')
+        return
+
+    participants = giveaway.get('participants', [])
+
+    if user_id in participants:
+        await update.message.reply_text(
+            "⚠️ <b>Already Participating</b>\n\n"
+            "You're already in this giveaway!\n\n"
+            "Good luck! 🍀",
+            reply_markup=reply_markup,
+            parse_mode='HTML')
+        return
+
+    participants.append(user_id)
+    giveaway['participants'] = participants
+    save_json(GIVEAWAY_FILE, giveaway)
+
+    await update.message.reply_text(
+        f"🎁 <b>Giveaway Entry Confirmed!</b>\n\n"
+        f"✅ You've successfully joined the giveaway!\n\n"
+        f"🏆 <b>Winners:</b> {giveaway.get('winners', 1)}\n"
+        f"👥 <b>Total Participants:</b> {len(participants)}\n"
+        f"⏰ <b>Ends:</b> {giveaway.get('end_time', 'Soon')[:19]}\n\n"
+        f"🍀 Good luck!",
+        reply_markup=reply_markup,
+        parse_mode='HTML')
 
 
 async def redeem_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
