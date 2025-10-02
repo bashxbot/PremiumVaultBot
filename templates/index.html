@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Panel - Dashboard{% endblock %}
+
+{% block content %}
+<h1>🎮 Admin Panel Dashboard</h1>
+<p style="color: #666; margin-bottom: 30px;">Manage credentials and keys for all platforms</p>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Total Keys</h3>
+        <div class="number">{{ total_keys }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Active Keys</h3>
+        <div class="number">{{ active_keys }}</div>
+    </div>
+</div>
+
+<h2>Platform Credentials</h2>
+
+{% for platform in platforms %}
+<div class="platform-card">
+    <h3 style="text-transform: capitalize; color: #667eea; margin-bottom: 15px;">
+        {% if platform == 'netflix' %}🎬{% elif platform == 'crunchyroll' %}🍜{% elif platform == 'spotify' %}🎵{% elif platform == 'wwe' %}🤼{% endif %}
+        {{ platform }}
+    </h3>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin-bottom: 15px;">
+        <div>
+            <div style="font-size: 12px; color: #999;">Total</div>
+            <div style="font-size: 24px; font-weight: bold;">{{ stats[platform]['total'] }}</div>
+        </div>
+        <div>
+            <div style="font-size: 12px; color: #999;">Active</div>
+            <div style="font-size: 24px; font-weight: bold; color: #48bb78;">{{ stats[platform]['active'] }}</div>
+        </div>
+        <div>
+            <div style="font-size: 12px; color: #999;">Claimed</div>
+            <div style="font-size: 24px; font-weight: bold; color: #ed8936;">{{ stats[platform]['claimed'] }}</div>
+        </div>
+        <div>
+            <div style="font-size: 12px; color: #999;">Inactive</div>
+            <div style="font-size: 24px; font-weight: bold; color: #999;">{{ stats[platform]['inactive'] }}</div>
+        </div>
+    </div>
+    
+    <a href="/credentials/{{ platform }}" class="btn btn-primary">Manage Credentials</a>
+</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Keys Management{% endblock %}
+
+{% block content %}
+<h1>🔑 Keys Management</h1>
+<p style="color: #666; margin-bottom: 30px;">View and track all redemption keys and their usage</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Key Code</th>
+            <th>Platform</th>
+            <th>Status</th>
+            <th>Remaining Uses</th>
+            <th>Created At</th>
+            <th>Expires At</th>
+            <th>Used By</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for key in keys %}
+        <tr>
+            <td>{{ loop.index }}</td>
+            <td><code style="background: #f5f5f5; padding: 4px 8px; border-radius: 3px;">{{ key.key }}</code></td>
+            <td style="text-transform: capitalize;">
+                {% if key.platform == 'netflix' %}🎬{% elif key.platform == 'crunchyroll' %}🍜{% elif key.platform == 'spotify' %}🎵{% elif key.platform == 'wwe' %}🤼{% endif %}
+                {{ key.platform }}
+            </td>
+            <td>
+                <span class="badge badge-{{ key.status }}">{{ key.status }}</span>
+            </td>
+            <td>{{ key.remaining_uses }} / {{ key.total_uses }}</td>
+            <td>{{ key.created_at[:19] if key.created_at else 'N/A' }}</td>
+            <td>{{ key.expires_at[:19] if key.expires_at else 'Never' }}</td>
+            <td>
+                {% if key.users_info %}
+                    <details>
+                        <summary style="cursor: pointer; color: #667eea;">{{ key.users_info|length }} users</summary>
+                        <ul style="margin-top: 10px; padding-left: 20px;">
+                            {% for user in key.users_info %}
+                            <li>User ID: {{ user.id }} (Joined: {{ user.joined[:19] if user.joined else 'N/A' }})</li>
+                            {% endfor %}
+                        </ul>
+                    </details>
+                {% else %}
+                    <span style="color: #999;">Not used yet</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="8" style="text-align: center; color: #999;">No keys found. Generate keys from the Telegram bot admin panel.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="margin-top: 30px; padding: 20px; background: #f9f9f9; border-radius: 10px;">
+    <h3 style="color: #667eea;">📊 Key Statistics</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+        <div>
+            <div style="font-size: 12px; color: #999;">Total Keys</div>
+            <div style="font-size: 24px; font-weight: bold;">{{ keys|length }}</div>
+        </div>
+        <div>
+            <div style="font-size: 12px; color: #999;">Active Keys</div>
+            <div style="font-size: 24px; font-weight: bold; color: #48bb78;">{{ keys|selectattr('status', 'equalto', 'active')|list|length }}</div>
+        </div>
+        <div>
+            <div style="font-size: 12px; color: #999;">Expired Keys</div>
+            <div style="font-size: 24px; font-weight: bold; color: #f56565;">{{ keys|selectattr('status', 'equalto', 'expired')|list|length }}</div>
+        </div>
+        <div>
+            <div style="font-size: 12px; color: #999;">Fully Used Keys</div>
+            <div style="font-size: 24px; font-weight: bold; color: #999;">{{ keys|selectattr('status', 'equalto', 'used')|list|length }}</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
