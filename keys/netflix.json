@@ -1,0 +1,26 @@
+[
+  {
+    "key": "NETFLIX-YK9E-GPS6-C6NK",
+    "platform": "Netflix",
+    "uses": 2,
+    "remaining_uses": 2,
+    "account_text": "1",
+    "status": "active",
+    "created_at": "2025-10-02T08:57:01.311724",
+    "redeemed_at": null,
+    "redeemed_by": [],
+    "used_by": []
+  },
+  {
+    "key": "NETFLIX-MI22-4V9F-G4AC",
+    "platform": "Netflix",
+    "uses": 1,
+    "remaining_uses": 1,
+    "account_text": "Premium",
+    "status": "active",
+    "created_at": "2025-10-02T13:13:57.407845",
+    "redeemed_at": null,
+    "redeemed_by": [],
+    "used_by": []
+  }
+]
