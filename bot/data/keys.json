@@ -18,5 +18,69 @@
     "used_by": [
       "6562270244"
     ]
+  },
+  {
+    "key": "CRUNCHYROLL-JB74-IIBT-JHK3",
+    "platform": "Crunchyroll",
+    "uses": 1,
+    "remaining_uses": 0,
+    "account_text": "1",
+    "status": "used",
+    "created_at": "2025-10-02T07:01:21.001362",
+    "redeemed_at": "2025-10-02T07:01:26.864613",
+    "redeemed_by": [
+      {
+        "user_id": "6562270244",
+        "username": "BEASTSEC",
+        "redeemed_at": "2025-10-02T07:01:26.864623"
+      }
+    ],
+    "used_by": [
+      "6562270244"
+    ]
+  },
+  {
+    "key": "CRUNCHYROLL-0X79-14MW-1RMF",
+    "platform": "Crunchyroll",
+    "uses": 2,
+    "remaining_uses": 2,
+    "account_text": "jf",
+    "status": "active",
+    "created_at": "2025-10-02T07:02:05.267229",
+    "redeemed_at": null,
+    "redeemed_by": [],
+    "used_by": []
+  },
+  {
+    "key": "CRUNCHYROLL-ELNV-ET8A-R5QW",
+    "platform": "Crunchyroll",
+    "uses": 2,
+    "remaining_uses": 1,
+    "account_text": "jf",
+    "status": "active",
+    "created_at": "2025-10-02T07:02:05.267244",
+    "redeemed_at": "2025-10-02T07:02:10.034146",
+    "redeemed_by": [
+      {
+        "user_id": "6562270244",
+        "username": "BEASTSEC",
+        "redeemed_at": "2025-10-02T07:02:10.034154"
+      }
+    ],
+    "used_by": [
+      "6562270244"
+    ]
+  },
+  {
+    "key": "CRUNCHYROLL-OZCQ-FM88-4YWH",
+    "platform": "Crunchyroll",
+    "uses": 2,
+    "remaining_uses": 2,
+    "account_text": "jf",
+    "status": "active",
+    "created_at": "2025-10-02T07:02:05.267252",
+    "redeemed_at": null,
+    "redeemed_by": [],
+    "used_by": []
   }
 ]
