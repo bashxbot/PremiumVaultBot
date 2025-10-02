@@ -1,8 +1,10 @@
-from flask import Flask, request, jsonify, send_from_directory
+
+from flask import Flask, request, jsonify, send_from_directory, session, redirect, url_for
 from flask_cors import CORS
 import json
 import os
 from datetime import datetime
+from functools import wraps
 
 app = Flask(__name__, static_folder='admin-panel/dist', static_url_path='')
 CORS(app)
@@ -12,6 +14,7 @@ PLATFORMS = ['netflix', 'crunchyroll', 'spotify', 'wwe']
 CREDENTIALS_DIR = 'credentials'
 KEYS_FILE = 'bot/data/keys.json'
 USERS_FILE = 'bot/data/users.json'
+ADMIN_CREDS_FILE = 'admin_credentials.json'
 
 def load_json(filename):
     try:
@@ -31,11 +34,110 @@ def ensure_credentials_dir():
         if not os.path.exists(filepath):
             save_json(filepath, [])
 
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'logged_in' not in session:
+            return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
 @app.route('/')
 def serve():
     return send_from_directory(app.static_folder, 'index.html')
 
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+    
+    admin_creds = load_json(ADMIN_CREDS_FILE)
+    
+    # Check owner credentials
+    if admin_creds.get('owner', {}).get('username') == username and admin_creds.get('owner', {}).get('password') == password:
+        session['logged_in'] = True
+        session['username'] = username
+        session['role'] = 'owner'
+        return jsonify({'success': True, 'role': 'owner'})
+    
+    # Check admin credentials
+    for admin in admin_creds.get('admins', []):
+        if admin.get('username') == username and admin.get('password') == password:
+            session['logged_in'] = True
+            session['username'] = username
+            session['role'] = 'admin'
+            return jsonify({'success': True, 'role': 'admin'})
+    
+    return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
+
+@app.route('/api/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return jsonify({'success': True})
+
+@app.route('/api/check-auth', methods=['GET'])
+def check_auth():
+    if 'logged_in' in session:
+        return jsonify({'authenticated': True, 'role': session.get('role', 'admin'), 'username': session.get('username')})
+    return jsonify({'authenticated': False})
+
+@app.route('/api/admins', methods=['GET'])
+@login_required
+def get_admins():
+    if session.get('role') != 'owner':
+        return jsonify({'success': False, 'message': 'Only owner can view admins'}), 403
+    
+    admin_creds = load_json(ADMIN_CREDS_FILE)
+    admins = admin_creds.get('admins', [])
+    # Don't send passwords
+    safe_admins = [{'username': a['username']} for a in admins]
+    return jsonify({'success': True, 'admins': safe_admins})
+
+@app.route('/api/admins', methods=['POST'])
+@login_required
+def add_admin():
+    if session.get('role') != 'owner':
+        return jsonify({'success': False, 'message': 'Only owner can add admins'}), 403
+    
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+    
+    if not username or not password:
+        return jsonify({'success': False, 'message': 'Username and password required'}), 400
+    
+    admin_creds = load_json(ADMIN_CREDS_FILE)
+    
+    # Check if username already exists
+    if admin_creds.get('owner', {}).get('username') == username:
+        return jsonify({'success': False, 'message': 'Username already exists'}), 400
+    
+    for admin in admin_creds.get('admins', []):
+        if admin.get('username') == username:
+            return jsonify({'success': False, 'message': 'Username already exists'}), 400
+    
+    admin_creds['admins'].append({'username': username, 'password': password, 'role': 'admin'})
+    save_json(ADMIN_CREDS_FILE, admin_creds)
+    
+    return jsonify({'success': True, 'message': 'Admin added successfully'})
+
+@app.route('/api/admins/<username>', methods=['DELETE'])
+@login_required
+def delete_admin(username):
+    if session.get('role') != 'owner':
+        return jsonify({'success': False, 'message': 'Only owner can delete admins'}), 403
+    
+    admin_creds = load_json(ADMIN_CREDS_FILE)
+    admins = admin_creds.get('admins', [])
+    
+    admin_creds['admins'] = [a for a in admins if a['username'] != username]
+    save_json(ADMIN_CREDS_FILE, admin_creds)
+    
+    return jsonify({'success': True, 'message': 'Admin deleted successfully'})
+
 @app.route('/api/stats')
+@login_required
 def get_stats():
     ensure_credentials_dir()
     stats = {}
@@ -61,6 +163,7 @@ def get_stats():
     })
 
 @app.route('/api/credentials/<platform>', methods=['GET'])
+@login_required
 def get_credentials(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
@@ -70,6 +173,7 @@ def get_credentials(platform):
     return jsonify({'success': True, 'credentials': credentials})
 
 @app.route('/api/credentials/<platform>', methods=['POST'])
+@login_required
 def add_credential(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
@@ -96,6 +200,7 @@ def add_credential(platform):
     return jsonify({'success': True, 'message': 'Credential added successfully'})
 
 @app.route('/api/credentials/<platform>/upload', methods=['POST'])
+@login_required
 def upload_credentials(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
@@ -147,6 +252,7 @@ def upload_credentials(platform):
     return jsonify({'success': True, 'message': message, 'added': added_count, 'skipped': skipped_count})
 
 @app.route('/api/credentials/<platform>/<int:index>', methods=['DELETE'])
+@login_required
 def delete_credential(platform, index):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
@@ -162,6 +268,7 @@ def delete_credential(platform, index):
     return jsonify({'success': False, 'message': 'Invalid index'}), 400
 
 @app.route('/api/credentials/<platform>/<int:index>', methods=['PUT'])
+@login_required
 def edit_credential(platform, index):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
@@ -189,6 +296,7 @@ def edit_credential(platform, index):
     return jsonify({'success': False, 'message': 'Invalid index'}), 400
 
 @app.route('/api/keys/<platform>', methods=['GET'])
+@login_required
 def get_keys(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
