@@ -424,16 +424,6 @@ files = [
 ]
 
 [[package]]
-name = "telegram"
-version = "0.0.1"
-description = "Telegram APIs"
-optional = false
-python-versions = "*"
-files = [
-    {file = "telegram-0.0.1.tar.gz", hash = "sha256:d405a0af4c868a8dbeae6d03e297e21c7ee6269e11e2ed3810e15544aba02591"},
-]
-
-[[package]]
 name = "typing-extensions"
 version = "4.15.0"
 description = "Backported and Experimental Type Hints for Python 3.9+"
@@ -464,4 +454,4 @@ watchdog = ["watchdog (>=2.3)"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10.0,<3.11"
-content-hash = "3c4de53f11bd6a9ef9a9916d7d913dfbc7a9ebe8dc5be90f6d8ff309dc276fa9"
+content-hash = "009abd57c958ec3ab44f961cc94a9bd4f597026040af0cd061d0f516aea744d0"
