@@ -520,7 +520,7 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     credential['status'] = 'claimed'
     credential['claimed_by'] = user_id
     credential['claimed_at'] = datetime.now().isoformat()
-    
+
     # Save immediately to prevent double allocation
     save_json(credential_file, credentials)
 
@@ -578,6 +578,26 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     platform_name = key_found.get('platform', 'Unknown')
     account_text = key_found.get('account_text', 'Premium Account')
 
+    # Get platform logo
+    logo_path = os.path.join('bot/assets/platforms', f'{platform_name.lower()}.png')
+    logo_caption = f"Here is your {platform_name} {account_text}!"
+    
+    try:
+        with open(logo_path, 'rb') as logo_file:
+            if update.message:
+                await update.message.reply_photo(
+                    photo=logo_file,
+                    caption=logo_caption,
+                    parse_mode='HTML')
+            elif update.callback_query:
+                await update.callback_query.message.reply_photo(
+                    photo=logo_file,
+                    caption=logo_caption,
+                    parse_mode='HTML')
+    except FileNotFoundError:
+        # If logo is not found, send text without photo
+        pass 
+
     success_text = (
         "🎉 <b>Key Redeemed Successfully!</b> 🎉\n\n"
         f"🎁 <b>Platform:</b> {platform_name}\n"
@@ -596,9 +616,14 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text(text=success_text,
-                                    reply_markup=reply_markup,
-                                    parse_mode='HTML')
+    if update.message:
+        await update.message.reply_text(text=success_text,
+                                        reply_markup=reply_markup,
+                                        parse_mode='HTML')
+    elif update.callback_query:
+        await update.callback_query.message.reply_text(text=success_text,
+                                                      reply_markup=reply_markup,
+                                                      parse_mode='HTML')
 
 
 async def participate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
