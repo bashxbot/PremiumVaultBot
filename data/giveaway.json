@@ -3,6 +3,12 @@
   "platform": "Netflix",
   "duration": "1m",
   "winners": 1,
-  "end_time": "2025-10-03T04:17:50.645312",
-  "participants": []
+  "end_time": "2025-10-03T04:20:41.910597",
+  "participants": [
+    "6562270244"
+  ],
+  "winners_selected": [
+    "6562270244"
+  ],
+  "keys_distributed": 0
 }
