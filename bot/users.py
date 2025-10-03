@@ -162,16 +162,16 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                  callback_data="user_redeem_key")
         ], [InlineKeyboardButton("📊 My Stats", callback_data="user_my_stats")],
         [
-            InlineKeyboardButton("📢 Channel 1",
-                                 url="https://t.me/PremiumVaultFigs"),
-            InlineKeyboardButton("📢 Channel 2",
-                                 url="https://t.me/accountvaultportal")
+            InlineKeyboardButton("📢 Channel Portal",
+                                 url="https://t.me/accountvaultportal"),
+            InlineKeyboardButton("📢 Channel Main",
+                                 url="https://t.me/+RKjw0ypr_e9lZTI0")
         ],
         [
-            InlineKeyboardButton("📢 Channel 3",
-                                 url="https://t.me/PremiumVaultBackup"),
-            InlineKeyboardButton("📢 Channel 4",
-                                 url="https://t.me/PremiumVault")
+            InlineKeyboardButton("📢 Channel Backup",
+                                 url="https://t.me/+yiYViAOknS9lZjlk"),
+            InlineKeyboardButton("📢 Channel Config",
+                                 url="https://t.me/+gxVbPeU842ZkNmU0")
         ], 
         [InlineKeyboardButton("❓ Help", callback_data="user_help")],
         [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/BEASTSEC")]
@@ -381,7 +381,6 @@ async def join_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text=f"🎁 <b>Giveaway Entry Confirmed!</b>\n\n"
         f"✅ You've successfully joined the giveaway!\n\n"
         f"🏆 <b>Winners:</b> {giveaway.get('winners', 1)}\n"
-        f"👥 <b>Total Participants:</b> {len(participants)}\n"
         f"⏰ <b>Ends:</b> {giveaway.get('end_time', 'Soon')[:19]}\n\n"
         f"🍀 Good luck!",
         reply_markup=reply_markup,
@@ -712,7 +711,6 @@ async def participate_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         f"🎁 <b>Giveaway Entry Confirmed!</b>\n\n"
         f"✅ You've successfully joined the giveaway!\n\n"
         f"🏆 <b>Winners:</b> {giveaway.get('winners', 1)}\n"
-        f"👥 <b>Total Participants:</b> {len(participants)}\n"
         f"⏰ <b>Ends:</b> {giveaway.get('end_time', 'Soon')[:19]}\n\n"
         f"🍀 Good luck!",
         reply_markup=reply_markup,
