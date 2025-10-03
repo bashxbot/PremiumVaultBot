@@ -1,3 +1,4 @@
+
 from flask import Flask, request, jsonify, send_from_directory, session, redirect, url_for
 from flask_cors import CORS
 import json
@@ -55,34 +56,18 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-@app.route('/api/check-auth')
-def check_auth():
-    if 'logged_in' in session:
-        return jsonify({'authenticated': True, 'role': session.get('role', 'admin'), 'username': session.get('username')})
-    return jsonify({'authenticated': False})
-
 @app.route('/')
-def serve_admin_panel():
-    return send_from_directory('admin-panel/dist', 'index.html')
-
-@app.route('/<path:path>')
-def serve_static(path):
-    # Don't serve static files for API routes
-    if path.startswith('api/'):
-        return jsonify({'error': 'API endpoint not found'}), 404
-    try:
-        return send_from_directory('admin-panel/dist', path)
-    except:
-        return send_from_directory('admin-panel/dist', 'index.html')
+def serve():
+    return send_from_directory(app.static_folder, 'index.html')
 
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.json
     username = data.get('username')
     password = data.get('password')
-
+    
     admin_creds = load_json(ADMIN_CREDS_FILE)
-
+    
     # Check owner credentials
     if admin_creds.get('owner', {}).get('username') == username and admin_creds.get('owner', {}).get('password') == password:
         session.permanent = True
@@ -90,7 +75,7 @@ def login():
         session['username'] = username
         session['role'] = 'owner'
         return jsonify({'success': True, 'role': 'owner'})
-
+    
     # Check admin credentials
     for admin in admin_creds.get('admins', []):
         if admin.get('username') == username and admin.get('password') == password:
@@ -99,7 +84,7 @@ def login():
             session['username'] = username
             session['role'] = 'admin'
             return jsonify({'success': True, 'role': 'admin'})
-
+    
     return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
 
 @app.route('/api/logout', methods=['POST'])
@@ -118,7 +103,7 @@ def check_auth():
 def get_admins():
     if session.get('role') != 'owner':
         return jsonify({'success': False, 'message': 'Only owner can view admins'}), 403
-
+    
     admin_creds = load_json(ADMIN_CREDS_FILE)
     admins = admin_creds.get('admins', [])
     # Don't send passwords
@@ -130,27 +115,27 @@ def get_admins():
 def add_admin():
     if session.get('role') != 'owner':
         return jsonify({'success': False, 'message': 'Only owner can add admins'}), 403
-
+    
     data = request.json
     username = data.get('username')
     password = data.get('password')
-
+    
     if not username or not password:
         return jsonify({'success': False, 'message': 'Username and password required'}), 400
-
+    
     admin_creds = load_json(ADMIN_CREDS_FILE)
-
+    
     # Check if username already exists
     if admin_creds.get('owner', {}).get('username') == username:
         return jsonify({'success': False, 'message': 'Username already exists'}), 400
-
+    
     for admin in admin_creds.get('admins', []):
         if admin.get('username') == username:
             return jsonify({'success': False, 'message': 'Username already exists'}), 400
-
+    
     admin_creds['admins'].append({'username': username, 'password': password, 'role': 'admin'})
     save_json(ADMIN_CREDS_FILE, admin_creds)
-
+    
     return jsonify({'success': True, 'message': 'Admin added successfully'})
 
 @app.route('/api/admins/<username>', methods=['DELETE'])
@@ -158,13 +143,13 @@ def add_admin():
 def delete_admin(username):
     if session.get('role') != 'owner':
         return jsonify({'success': False, 'message': 'Only owner can delete admins'}), 403
-
+    
     admin_creds = load_json(ADMIN_CREDS_FILE)
     admins = admin_creds.get('admins', [])
-
+    
     admin_creds['admins'] = [a for a in admins if a['username'] != username]
     save_json(ADMIN_CREDS_FILE, admin_creds)
-
+    
     return jsonify({'success': True, 'message': 'Admin deleted successfully'})
 
 @app.route('/api/change-username', methods=['POST'])
@@ -172,22 +157,22 @@ def delete_admin(username):
 def change_username():
     data = request.json
     new_username = data.get('newUsername')
-
+    
     if not new_username:
         return jsonify({'success': False, 'message': 'New username is required'}), 400
-
+    
     admin_creds = load_json(ADMIN_CREDS_FILE)
     current_username = session.get('username')
     current_role = session.get('role')
-
+    
     # Check if username already exists
     if admin_creds.get('owner', {}).get('username') == new_username:
         return jsonify({'success': False, 'message': 'Username already exists'}), 400
-
+    
     for admin in admin_creds.get('admins', []):
         if admin.get('username') == new_username:
             return jsonify({'success': False, 'message': 'Username already exists'}), 400
-
+    
     # Update username based on role
     if current_role == 'owner':
         admin_creds['owner']['username'] = new_username
@@ -196,10 +181,10 @@ def change_username():
             if admin.get('username') == current_username:
                 admin['username'] = new_username
                 break
-
+    
     save_json(ADMIN_CREDS_FILE, admin_creds)
     session['username'] = new_username
-
+    
     return jsonify({'success': True, 'message': 'Username changed successfully'})
 
 @app.route('/api/change-password', methods=['POST'])
@@ -208,14 +193,14 @@ def change_password():
     data = request.json
     current_password = data.get('currentPassword')
     new_password = data.get('newPassword')
-
+    
     if not current_password or not new_password:
         return jsonify({'success': False, 'message': 'Current and new passwords are required'}), 400
-
+    
     admin_creds = load_json(ADMIN_CREDS_FILE)
     current_username = session.get('username')
     current_role = session.get('role')
-
+    
     # Verify current password
     if current_role == 'owner':
         if admin_creds.get('owner', {}).get('password') != current_password:
@@ -232,9 +217,9 @@ def change_password():
                 break
         if not found:
             return jsonify({'success': False, 'message': 'User not found'}), 404
-
+    
     save_json(ADMIN_CREDS_FILE, admin_creds)
-
+    
     return jsonify({'success': True, 'message': 'Password changed successfully'})
 
 @app.route('/api/telegram-id', methods=['GET'])
@@ -243,7 +228,7 @@ def get_telegram_id():
     admin_creds = load_json(ADMIN_CREDS_FILE)
     current_username = session.get('username')
     current_role = session.get('role')
-
+    
     if current_role == 'owner':
         telegram_id = admin_creds.get('owner', {}).get('telegram_user_id', '')
     else:
@@ -252,7 +237,7 @@ def get_telegram_id():
             if admin.get('username') == current_username:
                 telegram_id = admin.get('telegram_user_id', '')
                 break
-
+    
     return jsonify({'success': True, 'telegram_user_id': telegram_id})
 
 @app.route('/api/telegram-id', methods=['POST'])
@@ -260,18 +245,18 @@ def get_telegram_id():
 def set_telegram_id():
     data = request.json
     telegram_id = data.get('telegramUserId', '').strip()
-
+    
     if not telegram_id:
         return jsonify({'success': False, 'message': 'Telegram User ID is required'}), 400
-
+    
     # Validate it's a number
     if not telegram_id.isdigit():
         return jsonify({'success': False, 'message': 'Telegram User ID must be a number'}), 400
-
+    
     admin_creds = load_json(ADMIN_CREDS_FILE)
     current_username = session.get('username')
     current_role = session.get('role')
-
+    
     if current_role == 'owner':
         admin_creds['owner']['telegram_user_id'] = telegram_id
     else:
@@ -283,9 +268,9 @@ def set_telegram_id():
                 break
         if not found:
             return jsonify({'success': False, 'message': 'User not found'}), 404
-
+    
     save_json(ADMIN_CREDS_FILE, admin_creds)
-
+    
     return jsonify({'success': True, 'message': 'Telegram User ID updated successfully'})
 
 @app.route('/api/stats')
@@ -303,11 +288,11 @@ def get_stats():
                 'claimed': len([c for c in creds if c.get('status') == 'claimed']),
                 'inactive': len([c for c in creds if c.get('status') == 'inactive'])
             }
-
+        
         keys_data = load_json(KEYS_FILE) if os.path.exists(KEYS_FILE) else []
         total_keys = len(keys_data)
         active_keys = len([k for k in keys_data if k.get('status') == 'active'])
-
+        
         return jsonify({
             'success': True,
             'platforms': PLATFORMS,
@@ -323,7 +308,7 @@ def get_stats():
 def get_credentials(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
-
+    
     filepath = os.path.join(CREDENTIALS_DIR, f'{platform}.json')
     credentials = load_json(filepath)
     return jsonify({'success': True, 'credentials': credentials})
@@ -333,25 +318,25 @@ def get_credentials(platform):
 def add_credential(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
-
+    
     data = request.json
     email = data.get('email')
     password = data.get('password')
     status = data.get('status', 'active')
-
+    
     if not email or not password:
         return jsonify({'success': False, 'message': 'Email and password are required'}), 400
-
+    
     filepath = os.path.join(CREDENTIALS_DIR, f'{platform}.json')
     credentials = load_json(filepath)
-
+    
     credentials.append({
         'email': email,
         'password': password,
         'status': status,
         'created_at': datetime.now().isoformat()
     })
-
+    
     save_json(filepath, credentials)
     return jsonify({'success': True, 'message': 'Credential added successfully'})
 
@@ -360,33 +345,33 @@ def add_credential(platform):
 def upload_credentials(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
-
+    
     if 'file' not in request.files:
         return jsonify({'success': False, 'message': 'No file uploaded'}), 400
-
+    
     file = request.files['file']
     if file.filename == '':
         return jsonify({'success': False, 'message': 'No file selected'}), 400
-
+    
     filepath = os.path.join(CREDENTIALS_DIR, f'{platform}.json')
     credentials = load_json(filepath)
-
+    
     content = file.read().decode('utf-8')
     lines = content.strip().split('\n')
-
+    
     added_count = 0
     skipped_count = 0
     for line in lines:
         line = line.strip()
         if not line:
             continue
-
+        
         parts = line.split(':')
         if len(parts) >= 2:
             email = parts[0].strip()
             password = parts[1].strip()
             status = parts[2].strip() if len(parts) >= 3 else 'active'
-
+            
             if email and password and '@' in email:
                 credentials.append({
                     'email': email,
@@ -399,12 +384,12 @@ def upload_credentials(platform):
                 skipped_count += 1
         else:
             skipped_count += 1
-
+    
     save_json(filepath, credentials)
     message = f'Successfully added {added_count} credentials'
     if skipped_count > 0:
         message += f' ({skipped_count} skipped due to invalid format)'
-
+    
     return jsonify({'success': True, 'message': message, 'added': added_count, 'skipped': skipped_count})
 
 @app.route('/api/credentials/<platform>/<int:index>', methods=['DELETE'])
@@ -412,15 +397,15 @@ def upload_credentials(platform):
 def delete_credential(platform, index):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
-
+    
     filepath = os.path.join(CREDENTIALS_DIR, f'{platform}.json')
     credentials = load_json(filepath)
-
+    
     if 0 <= index < len(credentials):
         credentials.pop(index)
         save_json(filepath, credentials)
         return jsonify({'success': True, 'message': 'Credential deleted successfully'})
-
+    
     return jsonify({'success': False, 'message': 'Invalid index'}), 400
 
 @app.route('/api/credentials/<platform>/<int:index>', methods=['PUT'])
@@ -428,27 +413,27 @@ def delete_credential(platform, index):
 def edit_credential(platform, index):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
-
+    
     filepath = os.path.join(CREDENTIALS_DIR, f'{platform}.json')
     credentials = load_json(filepath)
-
+    
     if 0 <= index < len(credentials):
         data = request.json
         email = data.get('email')
         password = data.get('password')
         status = data.get('status')
-
+        
         if email:
             credentials[index]['email'] = email
         if password:
             credentials[index]['password'] = password
         if status:
             credentials[index]['status'] = status
-
+        
         credentials[index]['updated_at'] = datetime.now().isoformat()
         save_json(filepath, credentials)
         return jsonify({'success': True, 'message': 'Credential updated successfully'})
-
+    
     return jsonify({'success': False, 'message': 'Invalid index'}), 400
 
 @app.route('/api/credentials/<platform>/delete-all', methods=['DELETE'])
@@ -456,7 +441,7 @@ def edit_credential(platform, index):
 def delete_all_credentials(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
-
+    
     filepath = os.path.join(CREDENTIALS_DIR, f'{platform}.json')
     save_json(filepath, [])
     return jsonify({'success': True, 'message': f'All {platform} credentials deleted successfully'})
@@ -466,7 +451,7 @@ def delete_all_credentials(platform):
 def delete_all_keys(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
-
+    
     keys_data = load_json(KEYS_FILE) if os.path.exists(KEYS_FILE) else []
     # Remove all keys for this platform
     keys_data = [k for k in keys_data if k.get('platform', '').lower() != platform.lower()]
@@ -478,14 +463,14 @@ def delete_all_keys(platform):
 def get_keys(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
-
+    
     # Load keys from both bot/data/keys.json and keys/{platform}.json
     bot_keys_file = 'bot/data/keys.json'
     bot_keys_data = load_json(bot_keys_file) if os.path.exists(bot_keys_file) else []
-
+    
     # Load from project root keys file
     keys_data = load_json(KEYS_FILE) if os.path.exists(KEYS_FILE) else []
-
+    
     # Merge keys from both sources (avoid duplicates by key code)
     all_keys = {}
     for k in keys_data:
@@ -493,14 +478,14 @@ def get_keys(platform):
     for k in bot_keys_data:
         if k.get('platform', '').lower() == platform.lower():
             all_keys[k.get('key')] = k
-
+    
     users_data = load_json(USERS_FILE) if os.path.exists(USERS_FILE) else {}
-
+    
     if not isinstance(users_data, dict):
         users_data = {}
-
+    
     platform_keys = [k for k in all_keys.values() if k.get('platform', '').lower() == platform.lower()]
-
+    
     for key in platform_keys:
         key['users_info'] = []
         if 'used_by' in key:
@@ -513,7 +498,7 @@ def get_keys(platform):
                             'id': user_id,
                             'joined': user_info.get('joined_at', 'N/A')
                         })
-
+    
     return jsonify({'success': True, 'keys': platform_keys})
 
 if __name__ == '__main__':
