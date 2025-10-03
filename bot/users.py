@@ -14,10 +14,10 @@ def get_project_root():
 
 # Required channels
 REQUIRED_CHANNELS = [
-    "accountvaultportal",
-    "+RKjw0ypr_e9lZTI0",
-    "+yiYViAOknS9lZjlk",
-    "+gxVbPeU842ZkNmU0"
+    "-1002937378958",  # ACCOUNT VAULT NETWORK - portal
+    "-1002758495265",  # PREMIUMS VAULT - main
+    "-1003084077701",  # PREMIUM VAULT BACKUP - backup
+    "-1003039286362"   # PREMIUM VAULT FIGS - config
 ]
 
 # Database files
@@ -141,8 +141,9 @@ async def user_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = InlineKeyboardMarkup(channel_buttons)
 
         welcome_text = (
-            "❌ <b>Still Need to Join!</b>\n\n"
-            "📢 Please join our channel first, then try again.")
+            "🚀 <b>Welcome to Premium Vault!</b>\n\n"
+            "🎁 To access premium accounts, please join all our channels below.\n\n"
+            "✨ It only takes a moment - then enjoy unlimited access!")
 
         await update.message.reply_text(text=welcome_text,
                                         reply_markup=reply_markup,
