@@ -1304,19 +1304,46 @@ async def check_and_process_giveaways(context: ContextTypes.DEFAULT_TYPE):
 
         image_path = platform_images.get(platform)
 
+        # Track distributed keys in this giveaway to prevent duplicates
+        distributed_keys_in_giveaway = []
+        
         # Send keys to winners
         keys_distributed = 0
         for winner_id in winner_ids:
-            # Check if there are available keys
-            if keys_distributed >= len(available_keys):
-                # No more keys available, notify winner they'll get it later
+            # Find a valid key that hasn't been distributed in this giveaway
+            key_data = None
+            key_index = 0
+            
+            for idx, key in enumerate(available_keys):
+                # Skip if already distributed in this giveaway
+                if key.get('key') in distributed_keys_in_giveaway:
+                    continue
+                
+                # Validate key is not used
+                if key.get('status') == 'used' or key.get('remaining_uses', 0) <= 0:
+                    logger.warning(f"Skipping used key: {key.get('key')}")
+                    continue
+                
+                # Validate key is not expired
+                if key.get('status') == 'expired':
+                    logger.warning(f"Skipping expired key: {key.get('key')}")
+                    continue
+                
+                # Valid key found
+                key_data = key
+                key_index = idx
+                break
+            
+            # Check if we found a valid key
+            if not key_data:
+                # No more valid keys available, notify winner they'll get it later
                 try:
                     await context.bot.send_message(
                         chat_id=int(winner_id),
                         text=
                         (f"🎉 <b>Congratulations! You Won!</b> 🎉\n\n"
                          f"🏆 You've been selected as a winner in the <b>{platform}</b> giveaway!\n\n"
-                         f"⚠️ <b>However</b>, we're currently out of keys.\n"
+                         f"⚠️ <b>However</b>, we're currently out of valid keys.\n"
                          f"An administrator will send you your key shortly.\n\n"
                          f"💝 Thank you for participating!"),
                         parse_mode='HTML')
@@ -1324,10 +1351,12 @@ async def check_and_process_giveaways(context: ContextTypes.DEFAULT_TYPE):
                     logger.error(f"Failed to notify winner {winner_id}: {e}")
                 continue
 
-            # Get a key for the winner
-            key_data = available_keys[keys_distributed]
+            # Get key details
             key_code = key_data.get('key')
             account_text = key_data.get('account_text', 'Premium Account')
+            
+            # Track this key as distributed in this giveaway
+            distributed_keys_in_giveaway.append(key_code)
 
             # Update key usage
             key_data['remaining_uses'] = key_data.get('remaining_uses', 1) - 1
@@ -1337,6 +1366,8 @@ async def check_and_process_giveaways(context: ContextTypes.DEFAULT_TYPE):
 
             if key_data['remaining_uses'] <= 0:
                 key_data['status'] = 'used'
+            
+            logger.info(f"Distributed key {key_code} to winner {winner_id} (remaining uses: {key_data['remaining_uses']})")
 
             # Save keys
             save_json(KEYS_FILE, keys)
