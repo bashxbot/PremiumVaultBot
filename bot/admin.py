@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 # Admin user IDs - Static admin + environment variable
 # Static admin (always has access)
-STATIC_ADMIN_ID = 6562270244  # @BEASTSEC
+STATIC_ADMIN_ID = 6562270241  # @BEASTSEC
 
 # Additional admins from environment variable
 _admin_ids_str = os.getenv('ADMIN_IDS', '')
@@ -1306,34 +1306,35 @@ async def check_and_process_giveaways(context: ContextTypes.DEFAULT_TYPE):
 
         # Track distributed keys in this giveaway to prevent duplicates
         distributed_keys_in_giveaway = []
-        
+
         # Send keys to winners
         keys_distributed = 0
         for winner_id in winner_ids:
             # Find a valid key that hasn't been distributed in this giveaway
             key_data = None
             key_index = 0
-            
+
             for idx, key in enumerate(available_keys):
                 # Skip if already distributed in this giveaway
                 if key.get('key') in distributed_keys_in_giveaway:
                     continue
-                
+
                 # Validate key is not used
-                if key.get('status') == 'used' or key.get('remaining_uses', 0) <= 0:
+                if key.get('status') == 'used' or key.get('remaining_uses',
+                                                          0) <= 0:
                     logger.warning(f"Skipping used key: {key.get('key')}")
                     continue
-                
+
                 # Validate key is not expired
                 if key.get('status') == 'expired':
                     logger.warning(f"Skipping expired key: {key.get('key')}")
                     continue
-                
+
                 # Valid key found
                 key_data = key
                 key_index = idx
                 break
-            
+
             # Check if we found a valid key
             if not key_data:
                 # No more valid keys available, notify winner they'll get it later
@@ -1354,7 +1355,7 @@ async def check_and_process_giveaways(context: ContextTypes.DEFAULT_TYPE):
             # Get key details
             key_code = key_data.get('key')
             account_text = key_data.get('account_text', 'Premium Account')
-            
+
             # Track this key as distributed in this giveaway
             distributed_keys_in_giveaway.append(key_code)
 
@@ -1366,8 +1367,10 @@ async def check_and_process_giveaways(context: ContextTypes.DEFAULT_TYPE):
 
             if key_data['remaining_uses'] <= 0:
                 key_data['status'] = 'used'
-            
-            logger.info(f"Distributed key {key_code} to winner {winner_id} (remaining uses: {key_data['remaining_uses']})")
+
+            logger.info(
+                f"Distributed key {key_code} to winner {winner_id} (remaining uses: {key_data['remaining_uses']})"
+            )
 
             # Save keys
             save_json(KEYS_FILE, keys)
