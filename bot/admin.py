@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 # Admin user IDs - Static admin + environment variable
 # Static admin (always has access)
-STATIC_ADMIN_ID = 6562270241  # @BEASTSEC
+STATIC_ADMIN_ID = 6562270244  # @BEASTSEC
 
 # Additional admins from environment variable
 _admin_ids_str = os.getenv('ADMIN_IDS', '')
@@ -1288,8 +1288,8 @@ async def check_and_process_giveaways(context: ContextTypes.DEFAULT_TYPE):
         # Get available keys for this platform (only completely unused keys)
         keys = load_json(KEYS_FILE)
         available_keys = [
-            k for k in keys if k.get('platform') == platform
-            and k.get('status') == 'active'
+            k for k in keys
+            if k.get('platform') == platform and k.get('status') == 'active'
             and k.get('remaining_uses', 0) == k.get('uses', 1)
             and len(k.get('used_by', [])) == 0
         ]
