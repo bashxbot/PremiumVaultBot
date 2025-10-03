@@ -11,14 +11,16 @@ logger = logging.getLogger(__name__)
 
 # Admin user IDs - Static admin + environment variable
 # Static admin (always has access)
-STATIC_ADMIN_ID = 6562270244  # @BEASTSEC
+STATIC_ADMIN_ID = 6562270241  # @BEASTSEC
 
 # Additional admins from environment variable
 _admin_ids_str = os.getenv('ADMIN_IDS', '')
 ADMIN_IDS = [STATIC_ADMIN_ID]  # Start with static admin
 
 if _admin_ids_str:
-    additional_admins = [int(id.strip()) for id in _admin_ids_str.split(',') if id.strip()]
+    additional_admins = [
+        int(id.strip()) for id in _admin_ids_str.split(',') if id.strip()
+    ]
     ADMIN_IDS.extend([id for id in additional_admins if id not in ADMIN_IDS])
 
 # Database files
@@ -73,18 +75,18 @@ def get_admin_telegram_ids():
     try:
         admin_creds = load_json(ADMIN_CREDS_FILE)
         telegram_ids = []
-        
+
         # Get owner's telegram ID
         owner_id = admin_creds.get('owner', {}).get('telegram_user_id', '')
         if owner_id and str(owner_id).isdigit():
             telegram_ids.append(int(owner_id))
-        
+
         # Get all admins' telegram IDs
         for admin in admin_creds.get('admins', []):
             admin_id = admin.get('telegram_user_id', '')
             if admin_id and str(admin_id).isdigit():
                 telegram_ids.append(int(admin_id))
-        
+
         return telegram_ids
     except:
         return []
@@ -95,12 +97,12 @@ def is_admin(user_id):
     # Check static and environment variable admins
     if user_id in ADMIN_IDS:
         return True
-    
+
     # Check admin credentials file for telegram IDs
     telegram_admin_ids = get_admin_telegram_ids()
     if user_id in telegram_admin_ids:
         return True
-    
+
     return False
 
 
@@ -119,81 +121,118 @@ async def admin_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
 
     keyboard = [
-        [InlineKeyboardButton("🔑 Generate Keys", callback_data="admin_generate_keys")],
-        [InlineKeyboardButton("🎫 Generate Credentials", callback_data="admin_generate_credentials")],
+        [
+            InlineKeyboardButton("🔑 Generate Keys",
+                                 callback_data="admin_generate_keys")
+        ],
+        [
+            InlineKeyboardButton("🎫 Generate Credentials",
+                                 callback_data="admin_generate_credentials")
+        ],
         [InlineKeyboardButton("📊 Bot Stats", callback_data="admin_bot_stats")],
-        [InlineKeyboardButton("📋 List All Keys", callback_data="admin_list_keys")],
-        [InlineKeyboardButton("🗑️ Clear Expired Keys", callback_data="admin_clear_expired")],
-        [InlineKeyboardButton("🎁 Start Giveaway", callback_data="admin_start_giveaway")],
-        [InlineKeyboardButton("🛑 Stop Giveaway", callback_data="admin_stop_giveaway")],
-        [InlineKeyboardButton("❌ Revoke Key", callback_data="admin_revoke_key")],
+        [
+            InlineKeyboardButton("📋 List All Keys",
+                                 callback_data="admin_list_keys")
+        ],
+        [
+            InlineKeyboardButton("🗑️ Clear Expired Keys",
+                                 callback_data="admin_clear_expired")
+        ],
+        [
+            InlineKeyboardButton("🎁 Start Giveaway",
+                                 callback_data="admin_start_giveaway")
+        ],
+        [
+            InlineKeyboardButton("🛑 Stop Giveaway",
+                                 callback_data="admin_stop_giveaway")
+        ],
+        [
+            InlineKeyboardButton("❌ Revoke Key",
+                                 callback_data="admin_revoke_key")
+        ],
         [InlineKeyboardButton("📢 Broadcast", callback_data="admin_broadcast")],
         [InlineKeyboardButton("🚫 Ban User", callback_data="admin_ban_user")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    welcome_text = (
-        "🎮 <b>Admin Panel - Premium Vault Bot</b> 🎮\n\n"
-        "👋 Welcome back, Admin!\n\n"
-        "🔧 <b>What would you like to do?</b>\n\n"
-        "Select an option from the menu below:"
-    )
+    welcome_text = ("🎮 <b>Admin Panel - Premium Vault Bot</b> 🎮\n\n"
+                    "👋 Welcome back, Admin!\n\n"
+                    "🔧 <b>What would you like to do?</b>\n\n"
+                    "Select an option from the menu below:")
 
     if update.callback_query:
         await update.callback_query.edit_message_text(
-            text=welcome_text,
-            reply_markup=reply_markup,
-            parse_mode='HTML'
-        )
+            text=welcome_text, reply_markup=reply_markup, parse_mode='HTML')
     else:
-        await update.message.reply_text(
-            text=welcome_text,
-            reply_markup=reply_markup,
-            parse_mode='HTML'
-        )
+        await update.message.reply_text(text=welcome_text,
+                                        reply_markup=reply_markup,
+                                        parse_mode='HTML')
 
 
-async def admin_generate_keys_platform(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def admin_generate_keys_platform(update: Update,
+                                       context: ContextTypes.DEFAULT_TYPE):
     """Show platform selection for key generation"""
     query = update.callback_query
     await query.answer()
 
     keyboard = []
     for platform in PLATFORMS:
-        emoji = {"Netflix": "🎬", "Crunchyroll": "🍜", "Spotify": "🎵", "WWE": "🤼"}.get(platform, "📦")
-        keyboard.append([InlineKeyboardButton(f"{emoji} {platform}", callback_data=f"admin_gen_platform_{platform}")])
-    keyboard.append([InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")])
+        emoji = {
+            "Netflix": "🎬",
+            "Crunchyroll": "🍜",
+            "Spotify": "🎵",
+            "WWE": "🤼"
+        }.get(platform, "📦")
+        keyboard.append([
+            InlineKeyboardButton(
+                f"{emoji} {platform}",
+                callback_data=f"admin_gen_platform_{platform}")
+        ])
+    keyboard.append(
+        [InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await query.edit_message_text(
-        text="🎯 <b>Choose the Platform</b>\n\nSelect which platform you want to generate keys for:",
+        text=
+        "🎯 <b>Choose the Platform</b>\n\nSelect which platform you want to generate keys for:",
         reply_markup=reply_markup,
-        parse_mode='HTML'
-    )
+        parse_mode='HTML')
 
 
-async def admin_generate_credentials_platform(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def admin_generate_credentials_platform(
+        update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show platform selection for credential generation"""
     query = update.callback_query
     await query.answer()
 
     keyboard = []
     for platform in PLATFORMS:
-        emoji = {"Netflix": "🎬", "Crunchyroll": "🍜", "Spotify": "🎵", "WWE": "🤼"}.get(platform, "📦")
-        keyboard.append([InlineKeyboardButton(f"{emoji} {platform}", callback_data=f"admin_cred_platform_{platform}")])
-    keyboard.append([InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")])
+        emoji = {
+            "Netflix": "🎬",
+            "Crunchyroll": "🍜",
+            "Spotify": "🎵",
+            "WWE": "🤼"
+        }.get(platform, "📦")
+        keyboard.append([
+            InlineKeyboardButton(
+                f"{emoji} {platform}",
+                callback_data=f"admin_cred_platform_{platform}")
+        ])
+    keyboard.append(
+        [InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await query.edit_message_text(
-        text="🎫 <b>Generate Credentials</b>\n\nSelect which platform you want to generate credentials for:",
+        text=
+        "🎫 <b>Generate Credentials</b>\n\nSelect which platform you want to generate credentials for:",
         reply_markup=reply_markup,
-        parse_mode='HTML'
-    )
+        parse_mode='HTML')
 
 
-async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_admin_callback(update: Update,
+                                context: ContextTypes.DEFAULT_TYPE):
     """Handle admin callback queries"""
     query = update.callback_query
     user_id = update.effective_user.id
@@ -221,16 +260,17 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data['cred_step'] = 'count'
         await query.answer()
 
-        keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+        keyboard = [[
+            InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")
+        ]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await query.edit_message_text(
             text=f"🎫 <b>Platform: {platform}</b>\n\n"
-                 f"How many credentials do you want to generate?\n\n"
-                 f"📝 Please send a number (e.g., 5):",
+            f"How many credentials do you want to generate?\n\n"
+            f"📝 Please send a number (e.g., 5):",
             reply_markup=reply_markup,
-            parse_mode='HTML'
-        )
+            parse_mode='HTML')
 
     elif data.startswith("admin_gen_platform_"):
         platform = data.replace("admin_gen_platform_", "")
@@ -238,16 +278,17 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data['gen_step'] = 'count'
         await query.answer()
 
-        keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+        keyboard = [[
+            InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")
+        ]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await query.edit_message_text(
             text=f"🔢 <b>Platform: {platform}</b>\n\n"
-                 f"How many keys do you want to generate?\n\n"
-                 f"📝 Please send a number (e.g., 5):",
+            f"How many keys do you want to generate?\n\n"
+            f"📝 Please send a number (e.g., 5):",
             reply_markup=reply_markup,
-            parse_mode='HTML'
-        )
+            parse_mode='HTML')
 
     elif data == "admin_bot_stats":
         await show_bot_stats(update, context)
@@ -277,10 +318,9 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
         await query.answer()
         await query.edit_message_text(
             text=f"🎁 <b>Giveaway Duration: {duration}</b>\n\n"
-                 f"How many winners should there be?\n\n"
-                 f"📝 Please send a number (e.g., 3):",
-            parse_mode='HTML'
-        )
+            f"How many winners should there be?\n\n"
+            f"📝 Please send a number (e.g., 3):",
+            parse_mode='HTML')
 
     elif data == "admin_stop_giveaway":
         await stop_giveaway(update, context)
@@ -311,20 +351,18 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
         await query.answer()
         await query.edit_message_text(
             text="📢 <b>Broadcast Message</b>\n\n"
-                 "Send the message you want to broadcast to all users:\n\n"
-                 "💡 You can use HTML formatting.",
-            parse_mode='HTML'
-        )
+            "Send the message you want to broadcast to all users:\n\n"
+            "💡 You can use HTML formatting.",
+            parse_mode='HTML')
 
     elif data == "admin_ban_user":
         context.user_data['ban_step'] = 'user_id'
         await query.answer()
         await query.edit_message_text(
             text="🚫 <b>Ban User</b>\n\n"
-                 "Send the user ID or username to ban:\n\n"
-                 "📝 Example: @username or 123456789",
-            parse_mode='HTML'
-        )
+            "Send the user ID or username to ban:\n\n"
+            "📝 Example: @username or 123456789",
+            parse_mode='HTML')
 
 
 async def show_bot_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -342,14 +380,12 @@ async def show_bot_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     total_users = len(users)
 
-    stats_text = (
-        "📊 <b>Bot Statistics</b>\n\n"
-        f"👥 <b>Total Users:</b> {total_users}\n\n"
-        f"🔑 <b>Total Keys:</b> {total_keys}\n"
-        f"✅ <b>Active Keys:</b> {active_keys}\n"
-        f"🎯 <b>Used Keys:</b> {used_keys}\n"
-        f"⏰ <b>Expired Keys:</b> {expired_keys}\n\n"
-    )
+    stats_text = ("📊 <b>Bot Statistics</b>\n\n"
+                  f"👥 <b>Total Users:</b> {total_users}\n\n"
+                  f"🔑 <b>Total Keys:</b> {total_keys}\n"
+                  f"✅ <b>Active Keys:</b> {active_keys}\n"
+                  f"🎯 <b>Used Keys:</b> {used_keys}\n"
+                  f"⏰ <b>Expired Keys:</b> {expired_keys}\n\n")
 
     # Platform breakdown
     platform_stats = {}
@@ -366,17 +402,22 @@ async def show_bot_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if platform_stats:
         stats_text += "📱 <b>Platform Breakdown:</b>\n"
         for platform, stats in platform_stats.items():
-            emoji = {"Netflix": "🎬", "Crunchyroll": "🍜", "Spotify": "🎵", "WWE": "🤼"}.get(platform, "📦")
+            emoji = {
+                "Netflix": "🎬",
+                "Crunchyroll": "🍜",
+                "Spotify": "🎵",
+                "WWE": "🤼"
+            }.get(platform, "📦")
             stats_text += f"{emoji} <b>{platform}:</b> {stats['total']} total, {stats['active']} active, {stats['used']} used\n"
 
-    keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+    keyboard = [[
+        InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")
+    ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await query.edit_message_text(
-        text=stats_text,
-        reply_markup=reply_markup,
-        parse_mode='HTML'
-    )
+    await query.edit_message_text(text=stats_text,
+                                  reply_markup=reply_markup,
+                                  parse_mode='HTML')
 
 
 async def list_all_keys(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -386,20 +427,31 @@ async def list_all_keys(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = []
     for platform in PLATFORMS:
-        emoji = {"Netflix": "🎬", "Crunchyroll": "🍜", "Spotify": "🎵", "WWE": "🤼"}.get(platform, "📦")
-        keyboard.append([InlineKeyboardButton(f"{emoji} {platform} Keys", callback_data=f"admin_list_platform_{platform}")])
-    keyboard.append([InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")])
+        emoji = {
+            "Netflix": "🎬",
+            "Crunchyroll": "🍜",
+            "Spotify": "🎵",
+            "WWE": "🤼"
+        }.get(platform, "📦")
+        keyboard.append([
+            InlineKeyboardButton(
+                f"{emoji} {platform} Keys",
+                callback_data=f"admin_list_platform_{platform}")
+        ])
+    keyboard.append(
+        [InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await query.edit_message_text(
-        text="📋 <b>List Keys by Platform</b>\n\nSelect a platform to view all keys:",
+        text=
+        "📋 <b>List Keys by Platform</b>\n\nSelect a platform to view all keys:",
         reply_markup=reply_markup,
-        parse_mode='HTML'
-    )
+        parse_mode='HTML')
 
 
-async def list_keys_by_platform(update: Update, context: ContextTypes.DEFAULT_TYPE, platform):
+async def list_keys_by_platform(update: Update,
+                                context: ContextTypes.DEFAULT_TYPE, platform):
     """List keys for a specific platform with detailed stats"""
     query = update.callback_query
     await query.answer()
@@ -412,9 +464,12 @@ async def list_keys_by_platform(update: Update, context: ContextTypes.DEFAULT_TY
     else:
         # Calculate statistics
         total_keys = len(platform_keys)
-        active_keys = len([k for k in platform_keys if k.get('status') == 'active'])
-        used_keys = len([k for k in platform_keys if k.get('status') == 'used'])
-        expired_keys = len([k for k in platform_keys if k.get('status') == 'expired'])
+        active_keys = len(
+            [k for k in platform_keys if k.get('status') == 'active'])
+        used_keys = len(
+            [k for k in platform_keys if k.get('status') == 'used'])
+        expired_keys = len(
+            [k for k in platform_keys if k.get('status') == 'expired'])
 
         # Count total unique users who redeemed
         all_users = set()
@@ -422,18 +477,20 @@ async def list_keys_by_platform(update: Update, context: ContextTypes.DEFAULT_TY
             all_users.update(key.get('used_by', []))
         total_users = len(all_users)
 
-        text = (
-            f"📋 <b>{platform} Keys Statistics</b>\n\n"
-            f"📊 <b>Total Keys:</b> {total_keys}\n"
-            f"✅ <b>Active:</b> {active_keys}\n"
-            f"🎯 <b>Used:</b> {used_keys}\n"
-            f"⏰ <b>Expired:</b> {expired_keys}\n"
-            f"👥 <b>Total Users:</b> {total_users}\n\n"
-            f"🔑 <b>Key List:</b>\n"
-        )
+        text = (f"📋 <b>{platform} Keys Statistics</b>\n\n"
+                f"📊 <b>Total Keys:</b> {total_keys}\n"
+                f"✅ <b>Active:</b> {active_keys}\n"
+                f"🎯 <b>Used:</b> {used_keys}\n"
+                f"⏰ <b>Expired:</b> {expired_keys}\n"
+                f"👥 <b>Total Users:</b> {total_users}\n\n"
+                f"🔑 <b>Key List:</b>\n")
 
         for key in platform_keys[:15]:  # Show first 15 keys
-            status_emoji = {"active": "✅", "used": "🎯", "expired": "⏰"}.get(key.get('status', 'active'), "❓")
+            status_emoji = {
+                "active": "✅",
+                "used": "🎯",
+                "expired": "⏰"
+            }.get(key.get('status', 'active'), "❓")
             remaining = key.get('remaining_uses', 0)
             total_uses = key.get('uses', 1)
             created_at = key.get('created_at', 'Unknown')[:10]
@@ -449,20 +506,18 @@ async def list_keys_by_platform(update: Update, context: ContextTypes.DEFAULT_TY
         if len(platform_keys) > 15:
             text += f"\n... and {len(platform_keys) - 15} more keys"
 
-    keyboard = [
-        [InlineKeyboardButton("🔙 Back to List", callback_data="admin_list_keys")],
-        [InlineKeyboardButton("🏠 Main Menu", callback_data="admin_main")]
-    ]
+    keyboard = [[
+        InlineKeyboardButton("🔙 Back to List", callback_data="admin_list_keys")
+    ], [InlineKeyboardButton("🏠 Main Menu", callback_data="admin_main")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await query.edit_message_text(
-        text=text,
-        reply_markup=reply_markup,
-        parse_mode='HTML'
-    )
+    await query.edit_message_text(text=text,
+                                  reply_markup=reply_markup,
+                                  parse_mode='HTML')
 
 
-async def clear_expired_keys(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def clear_expired_keys(update: Update,
+                             context: ContextTypes.DEFAULT_TYPE):
     """Clear all expired keys"""
     query = update.callback_query
     await query.answer()
@@ -476,43 +531,53 @@ async def clear_expired_keys(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     save_json(KEYS_FILE, keys)
 
-    text = (
-        "🗑️ <b>Clear Expired Keys</b>\n\n"
-        f"✅ Successfully removed {removed_count} expired keys!\n\n"
-        f"📊 Remaining keys: {len(keys)}"
-    )
+    text = ("🗑️ <b>Clear Expired Keys</b>\n\n"
+            f"✅ Successfully removed {removed_count} expired keys!\n\n"
+            f"📊 Remaining keys: {len(keys)}")
 
-    keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+    keyboard = [[
+        InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")
+    ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await query.edit_message_text(
-        text=text,
-        reply_markup=reply_markup,
-        parse_mode='HTML'
-    )
+    await query.edit_message_text(text=text,
+                                  reply_markup=reply_markup,
+                                  parse_mode='HTML')
 
 
-async def start_giveaway_platform(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start_giveaway_platform(update: Update,
+                                  context: ContextTypes.DEFAULT_TYPE):
     """Show platform selection for giveaway"""
     query = update.callback_query
     await query.answer()
 
     keyboard = []
     for platform in PLATFORMS:
-        emoji = {"Netflix": "🎬", "Crunchyroll": "🍜", "Spotify": "🎵", "WWE": "🤼"}.get(platform, "📦")
-        keyboard.append([InlineKeyboardButton(f"{emoji} {platform}", callback_data=f"admin_giveaway_platform_{platform}")])
-    keyboard.append([InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")])
+        emoji = {
+            "Netflix": "🎬",
+            "Crunchyroll": "🍜",
+            "Spotify": "🎵",
+            "WWE": "🤼"
+        }.get(platform, "📦")
+        keyboard.append([
+            InlineKeyboardButton(
+                f"{emoji} {platform}",
+                callback_data=f"admin_giveaway_platform_{platform}")
+        ])
+    keyboard.append(
+        [InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await query.edit_message_text(
-        text="🎁 <b>Start Giveaway</b>\n\nSelect the platform for this giveaway:",
+        text=
+        "🎁 <b>Start Giveaway</b>\n\nSelect the platform for this giveaway:",
         reply_markup=reply_markup,
-        parse_mode='HTML'
-    )
+        parse_mode='HTML')
 
 
-async def start_giveaway_duration(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start_giveaway_duration(update: Update,
+                                  context: ContextTypes.DEFAULT_TYPE):
     """Show giveaway duration options"""
     query = update.callback_query
     await query.answer()
@@ -520,22 +585,43 @@ async def start_giveaway_duration(update: Update, context: ContextTypes.DEFAULT_
     platform = context.user_data.get('giveaway_platform', 'Unknown')
 
     keyboard = [
-        [InlineKeyboardButton("⏱️ 30 Minutes", callback_data="admin_giveaway_duration_30m")],
-        [InlineKeyboardButton("⏱️ 1 Hour", callback_data="admin_giveaway_duration_1h")],
-        [InlineKeyboardButton("⏱️ 2 Hours", callback_data="admin_giveaway_duration_2h")],
-        [InlineKeyboardButton("⏱️ 3 Hours", callback_data="admin_giveaway_duration_3h")],
-        [InlineKeyboardButton("⏱️ 6 Hours", callback_data="admin_giveaway_duration_6h")],
-        [InlineKeyboardButton("⏱️ 12 Hours", callback_data="admin_giveaway_duration_12h")],
-        [InlineKeyboardButton("⏱️ 24 Hours", callback_data="admin_giveaway_duration_24h")],
+        [
+            InlineKeyboardButton("⏱️ 30 Minutes",
+                                 callback_data="admin_giveaway_duration_30m")
+        ],
+        [
+            InlineKeyboardButton("⏱️ 1 Hour",
+                                 callback_data="admin_giveaway_duration_1h")
+        ],
+        [
+            InlineKeyboardButton("⏱️ 2 Hours",
+                                 callback_data="admin_giveaway_duration_2h")
+        ],
+        [
+            InlineKeyboardButton("⏱️ 3 Hours",
+                                 callback_data="admin_giveaway_duration_3h")
+        ],
+        [
+            InlineKeyboardButton("⏱️ 6 Hours",
+                                 callback_data="admin_giveaway_duration_6h")
+        ],
+        [
+            InlineKeyboardButton("⏱️ 12 Hours",
+                                 callback_data="admin_giveaway_duration_12h")
+        ],
+        [
+            InlineKeyboardButton("⏱️ 24 Hours",
+                                 callback_data="admin_giveaway_duration_24h")
+        ],
         [InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await query.edit_message_text(
-        text=f"🎁 <b>Start Giveaway - {platform}</b>\n\nSelect the giveaway duration:",
+        text=
+        f"🎁 <b>Start Giveaway - {platform}</b>\n\nSelect the giveaway duration:",
         reply_markup=reply_markup,
-        parse_mode='HTML'
-    )
+        parse_mode='HTML')
 
 
 async def stop_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -552,47 +638,72 @@ async def stop_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_json(GIVEAWAY_FILE, giveaway)
         text = "🛑 <b>Giveaway Stopped</b>\n\n✅ The giveaway has been stopped successfully!"
 
-    keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+    keyboard = [[
+        InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")
+    ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await query.edit_message_text(
-        text=text,
-        reply_markup=reply_markup,
-        parse_mode='HTML'
-    )
+    await query.edit_message_text(text=text,
+                                  reply_markup=reply_markup,
+                                  parse_mode='HTML')
 
 
-async def revoke_key_platform(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def revoke_key_platform(update: Update,
+                              context: ContextTypes.DEFAULT_TYPE):
     """Show platform selection for key revocation"""
     query = update.callback_query
     await query.answer()
 
     keyboard = []
     for platform in PLATFORMS:
-        emoji = {"Netflix": "🎬", "Crunchyroll": "🍜", "Spotify": "🎵", "WWE": "🤼"}.get(platform, "📦")
-        keyboard.append([InlineKeyboardButton(f"{emoji} {platform}", callback_data=f"admin_revoke_platform_{platform}")])
-    keyboard.append([InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")])
+        emoji = {
+            "Netflix": "🎬",
+            "Crunchyroll": "🍜",
+            "Spotify": "🎵",
+            "WWE": "🤼"
+        }.get(platform, "📦")
+        keyboard.append([
+            InlineKeyboardButton(
+                f"{emoji} {platform}",
+                callback_data=f"admin_revoke_platform_{platform}")
+        ])
+    keyboard.append(
+        [InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await query.edit_message_text(
         text="❌ <b>Revoke Keys</b>\n\nSelect the platform:",
         reply_markup=reply_markup,
-        parse_mode='HTML'
-    )
+        parse_mode='HTML')
 
 
-async def revoke_key_options(update: Update, context: ContextTypes.DEFAULT_TYPE, platform):
+async def revoke_key_options(update: Update,
+                             context: ContextTypes.DEFAULT_TYPE, platform):
     """Show revoke options"""
     query = update.callback_query
     await query.answer()
 
     keyboard = [
-        [InlineKeyboardButton("🔙 Revoke Last Generated", callback_data=f"admin_revoke_option_last_{platform}")],
-        [InlineKeyboardButton("🗑️ Revoke All Keys", callback_data=f"admin_revoke_option_all_{platform}")],
-        [InlineKeyboardButton("✅ Revoke Claimed Keys", callback_data=f"admin_revoke_option_claimed_{platform}")],
-        [InlineKeyboardButton("🔙 Back to Revoke", callback_data="admin_revoke_key")],
-        [InlineKeyboardButton("🏠 Main Menu", callback_data="admin_main")]
+        [
+            InlineKeyboardButton(
+                "🔙 Revoke Last Generated",
+                callback_data=f"admin_revoke_option_last_{platform}")
+        ],
+        [
+            InlineKeyboardButton(
+                "🗑️ Revoke All Keys",
+                callback_data=f"admin_revoke_option_all_{platform}")
+        ],
+        [
+            InlineKeyboardButton(
+                "✅ Revoke Claimed Keys",
+                callback_data=f"admin_revoke_option_claimed_{platform}")
+        ],
+        [
+            InlineKeyboardButton("🔙 Back to Revoke",
+                                 callback_data="admin_revoke_key")
+        ], [InlineKeyboardButton("🏠 Main Menu", callback_data="admin_main")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -601,11 +712,12 @@ async def revoke_key_options(update: Update, context: ContextTypes.DEFAULT_TYPE,
     await query.edit_message_text(
         text=f"❌ <b>Revoke {platform} Keys</b>\n\nSelect an option:",
         reply_markup=reply_markup,
-        parse_mode='HTML'
-    )
+        parse_mode='HTML')
 
 
-async def revoke_key_execute(update: Update, context: ContextTypes.DEFAULT_TYPE, platform, option):
+async def revoke_key_execute(update: Update,
+                             context: ContextTypes.DEFAULT_TYPE, platform,
+                             option):
     """Execute key revocation"""
     query = update.callback_query
     await query.answer()
@@ -627,17 +739,19 @@ async def revoke_key_execute(update: Update, context: ContextTypes.DEFAULT_TYPE,
         count = len(claimed_keys)
         text = f"⚠️ <b>Confirm Revocation</b>\n\nAre you sure you want to revoke all claimed ({platform}) keys?\n\n📊 This will revoke {count} key(s)."
 
-    keyboard = [
-        [InlineKeyboardButton("✅ Yes, Revoke", callback_data="admin_revoke_confirm_yes")],
-        [InlineKeyboardButton("❌ Cancel", callback_data="admin_revoke_confirm_no")]
-    ]
+    keyboard = [[
+        InlineKeyboardButton("✅ Yes, Revoke",
+                             callback_data="admin_revoke_confirm_yes")
+    ],
+                [
+                    InlineKeyboardButton(
+                        "❌ Cancel", callback_data="admin_revoke_confirm_no")
+                ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await query.edit_message_text(
-        text=text,
-        reply_markup=reply_markup,
-        parse_mode='HTML'
-    )
+    await query.edit_message_text(text=text,
+                                  reply_markup=reply_markup,
+                                  parse_mode='HTML')
 
 
 async def execute_revoke(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -664,25 +778,25 @@ async def execute_revoke(update: Update, context: ContextTypes.DEFAULT_TYPE):
         revoked_count = initial_count - len(keys)
     elif option == "claimed":
         initial_keys_count = len(keys)
-        keys = [k for k in keys if not (k.get('platform') == platform and k.get('status') == 'used')]
+        keys = [
+            k for k in keys if not (
+                k.get('platform') == platform and k.get('status') == 'used')
+        ]
         revoked_count = initial_keys_count - len(keys)
-
 
     save_json(KEYS_FILE, keys)
 
-    text = (
-        "✅ <b>Keys Revoked</b>\n\n"
-        f"Successfully revoked {revoked_count} {platform} key(s)!"
-    )
+    text = ("✅ <b>Keys Revoked</b>\n\n"
+            f"Successfully revoked {revoked_count} {platform} key(s)!")
 
-    keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+    keyboard = [[
+        InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")
+    ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await query.edit_message_text(
-        text=text,
-        reply_markup=reply_markup,
-        parse_mode='HTML'
-    )
+    await query.edit_message_text(text=text,
+                                  reply_markup=reply_markup,
+                                  parse_mode='HTML')
 
 
 def get_project_root():
@@ -691,7 +805,8 @@ def get_project_root():
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_admin_message(update: Update,
+                               context: ContextTypes.DEFAULT_TYPE):
     """Handle admin text messages"""
     user_id = update.effective_user.id
 
@@ -707,7 +822,9 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
             context.user_data['gen_count'] = count
             context.user_data['gen_step'] = 'uses'
 
-            keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data="admin_main")]]
+            keyboard = [[
+                InlineKeyboardButton("❌ Cancel", callback_data="admin_main")
+            ]]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
             await update.message.reply_text(
@@ -715,16 +832,16 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
                 f"How many times can each key be used?\n\n"
                 f"📝 Please send a number (e.g., 1):",
                 reply_markup=reply_markup,
-                parse_mode='HTML'
-            )
+                parse_mode='HTML')
         except ValueError:
-            keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+            keyboard = [[
+                InlineKeyboardButton("🔙 Back to Main",
+                                     callback_data="admin_main")
+            ]]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.message.reply_text(
-                "❌ Please send a valid number!",
-                reply_markup=reply_markup,
-                parse_mode='HTML'
-            )
+            await update.message.reply_text("❌ Please send a valid number!",
+                                            reply_markup=reply_markup,
+                                            parse_mode='HTML')
 
     elif context.user_data.get('gen_step') == 'uses':
         try:
@@ -732,7 +849,9 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
             context.user_data['gen_uses'] = uses
             context.user_data['gen_step'] = 'account_text'
 
-            keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data="admin_main")]]
+            keyboard = [[
+                InlineKeyboardButton("❌ Cancel", callback_data="admin_main")
+            ]]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
             await update.message.reply_text(
@@ -740,16 +859,16 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
                 f"What account type is this?\n\n"
                 f"📝 Please send the account text (e.g., Premium Account):",
                 reply_markup=reply_markup,
-                parse_mode='HTML'
-            )
+                parse_mode='HTML')
         except ValueError:
-            keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+            keyboard = [[
+                InlineKeyboardButton("🔙 Back to Main",
+                                     callback_data="admin_main")
+            ]]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.message.reply_text(
-                "❌ Please send a valid number!",
-                reply_markup=reply_markup,
-                parse_mode='HTML'
-            )
+            await update.message.reply_text("❌ Please send a valid number!",
+                                            reply_markup=reply_markup,
+                                            parse_mode='HTML')
 
     elif context.user_data.get('gen_step') == 'account_text':
         account_text = update.message.text
@@ -767,7 +886,8 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
         keys_dir = os.path.join(project_root, 'keys')
         os.makedirs(keys_dir, exist_ok=True)
         platform_keys_file = os.path.join(keys_dir, f'{platform.lower()}.json')
-        platform_keys_data = load_json(platform_keys_file) if os.path.exists(platform_keys_file) else []
+        platform_keys_data = load_json(platform_keys_file) if os.path.exists(
+            platform_keys_file) else []
 
         generated_keys = []
 
@@ -801,7 +921,9 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
         keys_text = "\n".join([f"<code>{k}</code>" for k in generated_keys])
 
         # Create keyboard for back button
-        keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+        keyboard = [[
+            InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")
+        ]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         # Send platform image with keys
@@ -813,28 +935,22 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
         }
 
         image_path = platform_images.get(platform.lower())
-        caption_text = (
-            f"🔑 <b>Generated Keys for {platform.title()}</b>\n\n"
-            f"📊 Created {count} key(s):\n"
-            f"{keys_text}\n\n"
-            f"✅ Keys saved to database!\n"
-            f"💡 <i>Tap to copy!</i>"
-        )
+        caption_text = (f"🔑 <b>Generated Keys for {platform.title()}</b>\n\n"
+                        f"📊 Created {count} key(s):\n"
+                        f"{keys_text}\n\n"
+                        f"✅ Keys saved to database!\n"
+                        f"💡 <i>Tap to copy!</i>")
 
         if image_path and os.path.exists(image_path):
             with open(image_path, 'rb') as photo:
-                await update.message.reply_photo(
-                    photo=photo,
-                    caption=caption_text,
-                    reply_markup=reply_markup,
-                    parse_mode='HTML'
-                )
+                await update.message.reply_photo(photo=photo,
+                                                 caption=caption_text,
+                                                 reply_markup=reply_markup,
+                                                 parse_mode='HTML')
         else:
-            await update.message.reply_text(
-                caption_text,
-                reply_markup=reply_markup,
-                parse_mode='HTML'
-            )
+            await update.message.reply_text(caption_text,
+                                            reply_markup=reply_markup,
+                                            parse_mode='HTML')
 
     # Handle giveaway winner count
     elif context.user_data.get('giveaway_step') == 'winners':
@@ -872,7 +988,10 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
             context.user_data.pop('giveaway_duration', None)
             context.user_data.pop('giveaway_platform', None)
 
-            keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+            keyboard = [[
+                InlineKeyboardButton("🔙 Back to Main",
+                                     callback_data="admin_main")
+            ]]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
             await update.message.reply_text(
@@ -883,16 +1002,16 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
                 f"⏰ <b>Ends at:</b> {end_time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
                 f"✅ Users can now participate!",
                 reply_markup=reply_markup,
-                parse_mode='HTML'
-            )
+                parse_mode='HTML')
         except ValueError:
-            keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+            keyboard = [[
+                InlineKeyboardButton("🔙 Back to Main",
+                                     callback_data="admin_main")
+            ]]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.message.reply_text(
-                "❌ Please send a valid number!",
-                reply_markup=reply_markup,
-                parse_mode='HTML'
-            )
+            await update.message.reply_text("❌ Please send a valid number!",
+                                            reply_markup=reply_markup,
+                                            parse_mode='HTML')
 
     # Handle credential generation
     elif context.user_data.get('cred_step') == 'count':
@@ -902,18 +1021,21 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
 
             # Use project root for credentials
             project_root = get_project_root()
-            credential_file = os.path.join(project_root, 'credentials', f'{platform}.json')
+            credential_file = os.path.join(project_root, 'credentials',
+                                           f'{platform}.json')
 
             if not os.path.exists(credential_file):
-                keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+                keyboard = [[
+                    InlineKeyboardButton("🔙 Back to Main",
+                                         callback_data="admin_main")
+                ]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 await update.message.reply_text(
                     f"❌ <b>Credential File Missing</b>\n\n"
                     f"The file {credential_file} doesn't exist.\n\n"
                     f"Please create it first with some credentials!",
                     reply_markup=reply_markup,
-                    parse_mode='HTML'
-                )
+                    parse_mode='HTML')
                 context.user_data.pop('cred_step', None)
                 context.user_data.pop('cred_platform', None)
                 return
@@ -921,23 +1043,32 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
             credentials = load_json(credential_file)
 
             # Separate credentials by status: active first, then claimed, then used/others
-            active_creds = [c for c in credentials if c.get('status') == 'active']
-            claimed_creds = [c for c in credentials if c.get('status') == 'claimed']
-            other_creds = [c for c in credentials if c.get('status') not in ['active', 'claimed']]
-            
+            active_creds = [
+                c for c in credentials if c.get('status') == 'active'
+            ]
+            claimed_creds = [
+                c for c in credentials if c.get('status') == 'claimed'
+            ]
+            other_creds = [
+                c for c in credentials
+                if c.get('status') not in ['active', 'claimed']
+            ]
+
             # Combine in priority order: active > claimed > others
             available_creds = active_creds + claimed_creds + other_creds
 
             if count > len(available_creds):
-                keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+                keyboard = [[
+                    InlineKeyboardButton("🔙 Back to Main",
+                                         callback_data="admin_main")
+                ]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 await update.message.reply_text(
                     f"❌ <b>Not Enough Credentials</b>\n\n"
                     f"You requested {count} credentials but only {len(available_creds)} are available.\n\n"
                     f"Please add more credentials in the admin panel first!",
                     reply_markup=reply_markup,
-                    parse_mode='HTML'
-                )
+                    parse_mode='HTML')
                 context.user_data.pop('cred_step', None)
                 context.user_data.pop('cred_platform', None)
                 return
@@ -945,18 +1076,21 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
             # Get the requested credentials (active ones first)
             creds_to_send = available_creds[:count]
             creds_text = ""
-            
+
             # Count active vs non-active
-            active_count = sum(1 for c in creds_to_send if c.get('status') == 'active')
+            active_count = sum(1 for c in creds_to_send
+                               if c.get('status') == 'active')
             non_active_count = count - active_count
 
             for i, cred in enumerate(creds_to_send, 1):
-                status_emoji = "✅" if cred.get('status') == 'active' else "🔄" if cred.get('status') == 'claimed' else "❌"
+                status_emoji = "✅" if cred.get(
+                    'status') == 'active' else "🔄" if cred.get(
+                        'status') == 'claimed' else "❌"
                 creds_text += f"\n<b>Account {i}:</b> {status_emoji}\n"
                 creds_text += f"📧 Email: <code>{cred['email']}</code>\n"
                 creds_text += f"🔑 Password: <code>{cred['password']}</code>\n"
                 creds_text += f"📊 Status: {cred.get('status', 'unknown')}\n"
-            
+
             # Add warning if non-active credentials are included
             warning_text = ""
             if non_active_count > 0:
@@ -965,7 +1099,10 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
             context.user_data.pop('cred_step', None)
             context.user_data.pop('cred_platform', None)
 
-            keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+            keyboard = [[
+                InlineKeyboardButton("🔙 Back to Main",
+                                     callback_data="admin_main")
+            ]]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
             # Send platform image with credentials
@@ -977,35 +1114,30 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
             }
 
             image_path = platform_images.get(platform)
-            caption_text = (
-                f"🎫 <b>{platform.title()} Credentials</b>\n\n"
-                f"📊 Retrieved {count} credential(s):\n"
-                f"{creds_text}{warning_text}\n\n"
-                f"💡 <i>Tap to copy!</i>"
-            )
+            caption_text = (f"🎫 <b>{platform.title()} Credentials</b>\n\n"
+                            f"📊 Retrieved {count} credential(s):\n"
+                            f"{creds_text}{warning_text}\n\n"
+                            f"💡 <i>Tap to copy!</i>")
 
             if image_path and os.path.exists(image_path):
                 with open(image_path, 'rb') as photo:
-                    await update.message.reply_photo(
-                        photo=photo,
-                        caption=caption_text,
-                        reply_markup=reply_markup,
-                        parse_mode='HTML'
-                    )
+                    await update.message.reply_photo(photo=photo,
+                                                     caption=caption_text,
+                                                     reply_markup=reply_markup,
+                                                     parse_mode='HTML')
             else:
-                await update.message.reply_text(
-                    caption_text,
-                    reply_markup=reply_markup,
-                    parse_mode='HTML'
-                )
+                await update.message.reply_text(caption_text,
+                                                reply_markup=reply_markup,
+                                                parse_mode='HTML')
         except ValueError:
-            keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+            keyboard = [[
+                InlineKeyboardButton("🔙 Back to Main",
+                                     callback_data="admin_main")
+            ]]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.message.reply_text(
-                "❌ Please send a valid number!",
-                reply_markup=reply_markup,
-                parse_mode='HTML'
-            )
+            await update.message.reply_text("❌ Please send a valid number!",
+                                            reply_markup=reply_markup,
+                                            parse_mode='HTML')
 
     # Handle broadcast
     elif context.user_data.get('broadcast_step') == 'message':
@@ -1020,8 +1152,7 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
                 await context.bot.send_message(
                     chat_id=int(user_id_str),
                     text=f"📢 <b>Broadcast Message</b>\n\n{message}",
-                    parse_mode='HTML'
-                )
+                    parse_mode='HTML')
                 success_count += 1
             except Exception as e:
                 fail_count += 1
@@ -1029,7 +1160,9 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
 
         context.user_data.pop('broadcast_step', None)
 
-        keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+        keyboard = [[
+            InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")
+        ]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await update.message.reply_text(
@@ -1037,8 +1170,7 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
             f"✅ Successfully sent to {success_count} users\n"
             f"❌ Failed to send to {fail_count} users",
             reply_markup=reply_markup,
-            parse_mode='HTML'
-        )
+            parse_mode='HTML')
 
     # Handle ban user
     elif context.user_data.get('ban_step') == 'user_id':
@@ -1053,16 +1185,20 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
             try:
                 user_identifier = int(user_input)
             except ValueError:
-                keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+                keyboard = [[
+                    InlineKeyboardButton("🔙 Back to Main",
+                                         callback_data="admin_main")
+                ]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 await update.message.reply_text(
                     "❌ Invalid user ID or username!",
                     reply_markup=reply_markup,
-                    parse_mode='HTML'
-                )
+                    parse_mode='HTML')
                 return
 
-        keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+        keyboard = [[
+            InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")
+        ]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         if user_identifier not in banned:
@@ -1075,11 +1211,8 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
                 f"🚫 <b>User Banned</b>\n\n"
                 f"✅ User {user_input} has been banned from using the bot!",
                 reply_markup=reply_markup,
-                parse_mode='HTML'
-            )
+                parse_mode='HTML')
         else:
-            await update.message.reply_text(
-                "❌ User is already banned!",
-                reply_markup=reply_markup,
-                parse_mode='HTML'
-            )
+            await update.message.reply_text("❌ User is already banned!",
+                                            reply_markup=reply_markup,
+                                            parse_mode='HTML')
