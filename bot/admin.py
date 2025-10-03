@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 # Admin user IDs - Static admin + environment variable
 # Static admin (always has access)
-STATIC_ADMIN_ID = 6562270241  # @BEASTSEC
+STATIC_ADMIN_ID = 6562270244  # @BEASTSEC
 
 # Additional admins from environment variable
 _admin_ids_str = os.getenv('ADMIN_IDS', '')
