@@ -596,10 +596,10 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
 
     # Get platform logo
     platform_images = {
-        'Netflix': 'bot/assets/netflix.png',
-        'Crunchyroll': 'bot/assets/crunchyroll.png',
-        'WWE': 'bot/assets/wwe.png',
-        'Spotify': 'bot/assets/spotify.png'
+        'Netflix': 'attached_assets/platforms/netflix.png',
+        'Crunchyroll': 'attached_assets/platforms/crunchyroll.png',
+        'WWE': 'attached_assets/platforms/wwe.png',
+        'Spotify': 'attached_assets/platforms/spotify.png'
     }
     logo_path = platform_images.get(platform_name)
     

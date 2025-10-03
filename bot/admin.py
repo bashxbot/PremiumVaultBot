@@ -952,10 +952,10 @@ async def handle_admin_message(update: Update,
 
         # Send platform image with keys
         platform_images = {
-            'netflix': 'assets/netflix.png',
-            'crunchyroll': 'assets/crunchyroll.png',
-            'wwe': 'assets/wwe.png',
-            'spotify': 'assets/spotify.png'
+            'netflix': 'attached_assets/platforms/netflix.png',
+            'crunchyroll': 'attached_assets/platforms/crunchyroll.png',
+            'wwe': 'attached_assets/platforms/wwe.png',
+            'spotify': 'attached_assets/platforms/spotify.png'
         }
 
         image_path = platform_images.get(platform.lower())
@@ -1132,10 +1132,10 @@ async def handle_admin_message(update: Update,
 
             # Send platform image with credentials
             platform_images = {
-                'netflix': 'assets/netflix.png',
-                'crunchyroll': 'assets/crunchyroll.png',
-                'wwe': 'assets/wwe.png',
-                'spotify': 'assets/spotify.png'
+                'netflix': 'attached_assets/platforms/netflix.png',
+                'crunchyroll': 'attached_assets/platforms/crunchyroll.png',
+                'wwe': 'attached_assets/platforms/wwe.png',
+                'spotify': 'attached_assets/platforms/spotify.png'
             }
 
             image_path = platform_images.get(platform)
@@ -1290,10 +1290,10 @@ async def check_and_process_giveaways(context: ContextTypes.DEFAULT_TYPE):
 
         # Platform images
         platform_images = {
-            'Netflix': 'assets/netflix.png',
-            'Crunchyroll': 'assets/crunchyroll.png',
-            'WWE': 'assets/wwe.png',
-            'Spotify': 'assets/spotify.png'
+            'Netflix': 'attached_assets/platforms/netflix.png',
+            'Crunchyroll': 'attached_assets/platforms/crunchyroll.png',
+            'WWE': 'attached_assets/platforms/wwe.png',
+            'Spotify': 'attached_assets/platforms/spotify.png'
         }
 
         image_path = platform_images.get(platform)
