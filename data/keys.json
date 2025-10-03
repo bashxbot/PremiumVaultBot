@@ -20,5 +20,19 @@
     ],
     "giveaway_generated": true,
     "giveaway_winner": "6562270244"
+  },
+  {
+    "key": "SPOTIFY-KEJV-QKM0-NZPS",
+    "platform": "Spotify",
+    "uses": 1,
+    "remaining_uses": 1,
+    "account_text": "Spotify Giveaway Prize",
+    "status": "active",
+    "created_at": "2025-10-03T04:30:45.480161",
+    "redeemed_at": null,
+    "redeemed_by": [],
+    "used_by": [],
+    "giveaway_generated": true,
+    "giveaway_winner": "6562270244"
   }
 ]
