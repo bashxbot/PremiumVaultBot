@@ -19,14 +19,22 @@ logger = logging.getLogger(__name__)
 
 def run_bot():
     """Run the Telegram bot"""
+    import sys
+    import os
+    
+    # Add bot directory to Python path
+    bot_dir = os.path.join(os.path.dirname(__file__), 'bot')
+    if bot_dir not in sys.path:
+        sys.path.insert(0, bot_dir)
+    
     from telegram import Update
     from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
     
     # Import bot modules
-    from bot.admin import (admin_start, handle_admin_callback, handle_admin_message,
-                          is_admin, ensure_data_files, check_and_process_giveaways)
-    from bot.users import (user_start, handle_user_callback, handle_user_message,
-                          redeem_command, participate_command)
+    from admin import (admin_start, handle_admin_callback, handle_admin_message,
+                      is_admin, ensure_data_files, check_and_process_giveaways)
+    from users import (user_start, handle_user_callback, handle_user_message,
+                      redeem_command, participate_command)
     
     BOT_TOKEN = os.getenv('BOT_TOKEN', '7941709895:AAH4jPLL6FRxEqo3v0Ai4lKa6huWu1trpYU')
     
