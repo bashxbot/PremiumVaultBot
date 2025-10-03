@@ -202,5 +202,27 @@
     "redeemed_at": null,
     "redeemed_by": [],
     "used_by": []
+  },
+  {
+    "key": "NETFLIX-GACK-HTNJ-V05D",
+    "platform": "Netflix",
+    "uses": 1,
+    "remaining_uses": 0,
+    "account_text": "Netflix Giveaway Prize",
+    "status": "used",
+    "created_at": "2025-10-03T04:25:35.849028",
+    "redeemed_at": "2025-10-03T04:25:51.122447",
+    "redeemed_by": [
+      {
+        "user_id": "6562270244",
+        "username": null,
+        "redeemed_at": "2025-10-03T04:25:51.122455"
+      }
+    ],
+    "used_by": [
+      "6562270244"
+    ],
+    "giveaway_generated": true,
+    "giveaway_winner": "6562270244"
   }
 ]

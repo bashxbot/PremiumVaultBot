@@ -2,6 +2,12 @@
   "6562270244": {
     "username": null,
     "joined_at": "2025-10-03T04:17:17.375123",
-    "redeemed_keys": []
+    "redeemed_keys": [
+      {
+        "key": "NETFLIX-GACK-HTNJ-V05D",
+        "platform": "Netflix",
+        "redeemed_at": "2025-10-03T04:25:51.123986"
+      }
+    ]
   }
 }

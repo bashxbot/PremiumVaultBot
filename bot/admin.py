@@ -1304,7 +1304,7 @@ async def check_and_process_giveaways(context: ContextTypes.DEFAULT_TYPE):
             # Generate a new key for this winner
             key_code = generate_key_code(platform)
             account_text = f"{platform} Giveaway Prize"
-            
+
             # Create new key data
             new_key = {
                 "key": key_code,
@@ -1320,24 +1320,28 @@ async def check_and_process_giveaways(context: ContextTypes.DEFAULT_TYPE):
                 "giveaway_generated": True,
                 "giveaway_winner": str(winner_id)
             }
-            
+
             # Add to main keys file
             keys.append(new_key)
-            
+
             # Also add to platform-specific keys file
             import os
-            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            platform_keys_file = os.path.join(project_root, 'keys', f'{platform.lower()}.json')
-            
+            project_root = os.path.dirname(
+                os.path.dirname(os.path.abspath(__file__)))
+            platform_keys_file = os.path.join(project_root, 'keys',
+                                              f'{platform.lower()}.json')
+
             if os.path.exists(platform_keys_file):
                 platform_keys = load_json(platform_keys_file)
                 platform_keys.append(new_key)
                 save_json(platform_keys_file, platform_keys)
-            
+
             # Save main keys file
             save_json(KEYS_FILE, keys)
-            
-            logger.info(f"Generated new key {key_code} for giveaway winner {winner_id}")
+
+            logger.info(
+                f"Generated new key {key_code} for giveaway winner {winner_id}"
+            )
 
             # Create winner message
             winner_text = (
