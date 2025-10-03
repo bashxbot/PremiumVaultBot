@@ -2,8 +2,11 @@
 name = "python-template"
 version = "0.1.0"
 description = ""
-authors = ["Your Name <you@example.com>"]
+authors = ["Bash Cartoon <bashxbot@gmail.com>"] 
 packages = []
+package-mode = false
+
+
 
 
 [tool.poetry.dependencies]
