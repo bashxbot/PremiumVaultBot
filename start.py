@@ -89,11 +89,13 @@ def run_bot():
 
 def run_flask():
     """Run the Flask admin panel"""
+    import os
     from api_server import app, ensure_credentials_dir
     
     ensure_credentials_dir()
-    logger.info("🌐 Admin Panel starting on port 5000...")
-    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+    port = int(os.getenv('PORT', 5000))
+    logger.info(f"🌐 Admin Panel starting on port {port}...")
+    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
 
 if __name__ == "__main__":
     logger.info("🚀 Starting Premium Vault - Bot & Admin Panel")
