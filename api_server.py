@@ -464,13 +464,27 @@ def get_keys(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
     
+    # Load keys from both bot/data/keys.json and keys/{platform}.json
+    bot_keys_file = 'bot/data/keys.json'
+    bot_keys_data = load_json(bot_keys_file) if os.path.exists(bot_keys_file) else []
+    
+    # Load from project root keys file
     keys_data = load_json(KEYS_FILE) if os.path.exists(KEYS_FILE) else []
+    
+    # Merge keys from both sources (avoid duplicates by key code)
+    all_keys = {}
+    for k in keys_data:
+        all_keys[k.get('key')] = k
+    for k in bot_keys_data:
+        if k.get('platform', '').lower() == platform.lower():
+            all_keys[k.get('key')] = k
+    
     users_data = load_json(USERS_FILE) if os.path.exists(USERS_FILE) else {}
     
     if not isinstance(users_data, dict):
         users_data = {}
     
-    platform_keys = [k for k in keys_data if k.get('platform', '').lower() == platform.lower()]
+    platform_keys = [k for k in all_keys.values() if k.get('platform', '').lower() == platform.lower()]
     
     for key in platform_keys:
         key['users_info'] = []

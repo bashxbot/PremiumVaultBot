@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 # Admin user IDs - Static admin + environment variable
 # Static admin (always has access)
-STATIC_ADMIN_ID = 6562270241  # @BEASTSEC
+STATIC_ADMIN_ID = 6562270244  # @BEASTSEC
 
 # Additional admins from environment variable
 _admin_ids_str = os.getenv('ADMIN_IDS', '')
@@ -1324,20 +1324,27 @@ async def check_and_process_giveaways(context: ContextTypes.DEFAULT_TYPE):
             # Add to main keys file
             keys.append(new_key)
 
-            # Also add to platform-specific keys file
+            # Save main keys file first
+            save_json(KEYS_FILE, keys)
+
+            # Also add to platform-specific keys file in keys/ directory (project root)
             import os
             project_root = os.path.dirname(
                 os.path.dirname(os.path.abspath(__file__)))
             platform_keys_file = os.path.join(project_root, 'keys',
                                               f'{platform.lower()}.json')
 
+            # Create keys directory if it doesn't exist
+            os.makedirs(os.path.dirname(platform_keys_file), exist_ok=True)
+
+            # Load existing platform keys or create new list
             if os.path.exists(platform_keys_file):
                 platform_keys = load_json(platform_keys_file)
-                platform_keys.append(new_key)
-                save_json(platform_keys_file, platform_keys)
+            else:
+                platform_keys = []
 
-            # Save main keys file
-            save_json(KEYS_FILE, keys)
+            platform_keys.append(new_key)
+            save_json(platform_keys_file, platform_keys)
 
             logger.info(
                 f"Generated new key {key_code} for giveaway winner {winner_id}"
