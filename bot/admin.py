@@ -1285,11 +1285,13 @@ async def check_and_process_giveaways(context: ContextTypes.DEFAULT_TYPE):
             f"Selected {actual_winners} winners from {len(participants)} participants"
         )
 
-        # Get available keys for this platform
+        # Get available keys for this platform (only completely unused keys)
         keys = load_json(KEYS_FILE)
         available_keys = [
             k for k in keys if k.get('platform') == platform
-            and k.get('status') != 'used' and k.get('remaining_uses', 0) > 0
+            and k.get('status') == 'active'
+            and k.get('remaining_uses', 0) == k.get('uses', 1)
+            and len(k.get('used_by', [])) == 0
         ]
 
         # Platform images
