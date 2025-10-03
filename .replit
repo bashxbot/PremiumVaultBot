@@ -8,13 +8,13 @@ channel = "stable-23_05"
 packages = ["freetype", "lcms2", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "tcl", "tk", "zlib"]
 
 [deployment]
-run = ["sh", "-c", "python3 main.py"]
+run = ["sh", "-c", "python start.py"]
 
 [agent]
 expertMode = true
 
 [workflows]
-runButton = "Project"
+runButton = "Unified Service"
 
 [[workflows.workflow]]
 name = "Project"
@@ -60,6 +60,15 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python api_server.py"
+
+[[workflows.workflow]]
+name = "Unified Service"
+author = 46041028
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python start.py"
 
 [[ports]]
 localPort = 5000
