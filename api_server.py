@@ -48,6 +48,23 @@ def ensure_credentials_dir():
         if not os.path.exists(filepath):
             save_json(filepath, [])
 
+def ensure_admin_credentials():
+    if not os.path.exists(ADMIN_CREDS_FILE):
+        admin_username = os.getenv('ADMIN_USERNAME', 'admin')
+        admin_password = os.getenv('ADMIN_PASSWORD', 'changeme')
+        
+        default_creds = {
+            'owner': {
+                'username': admin_username,
+                'password': admin_password,
+                'role': 'owner'
+            },
+            'admins': []
+        }
+        save_json(ADMIN_CREDS_FILE, default_creds)
+        return default_creds
+    return load_json(ADMIN_CREDS_FILE)
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -508,6 +525,8 @@ def catch_all(path):
     else:
         return send_from_directory(app.static_folder, 'index.html')
 
+ensure_credentials_dir()
+ensure_admin_credentials()
+
 if __name__ == '__main__':
-    ensure_credentials_dir()
     app.run(host='0.0.0.0', port=5000, debug=False)

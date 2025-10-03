@@ -18,3 +18,4 @@ admin-panel/dist/
 .env
 .DS_Store
 .flask_secret_key
+admin_credentials.json
