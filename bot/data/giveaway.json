@@ -1,10 +1,14 @@
 {
-  "active": true,
+  "active": false,
   "platform": "Spotify",
   "duration": "12h",
   "winners": 3,
   "end_time": "2025-10-03T01:18:38.439773",
   "participants": [
     "6562270244"
-  ]
+  ],
+  "winners_selected": [
+    "6562270244"
+  ],
+  "keys_distributed": 1
 }

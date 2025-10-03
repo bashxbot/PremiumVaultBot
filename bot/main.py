@@ -10,7 +10,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 
 # Import admin and user modules
 from admin import (admin_start, handle_admin_callback, handle_admin_message,
-                   is_admin, ensure_data_files)
+                   is_admin, ensure_data_files, check_and_process_giveaways)
 from users import (user_start, handle_user_callback, handle_user_message,
                    redeem_command, participate_command)
 
@@ -95,6 +95,11 @@ def main() -> None:
 
     # Add error handler
     application.add_error_handler(error_handler)
+
+    # Add background job to check for expired giveaways every 30 seconds
+    job_queue = application.job_queue
+    job_queue.run_repeating(check_and_process_giveaways, interval=30, first=10)
+    logger.info("✅ Giveaway checker job scheduled (runs every 30 seconds)")
 
     # Start the bot
     logger.info("🎮 Premium Vault Bot is starting...")

@@ -586,6 +586,10 @@ async def start_giveaway_duration(update: Update,
 
     keyboard = [
         [
+            InlineKeyboardButton("⏱️ 1 Minute",
+                                 callback_data="admin_giveaway_duration_1m")
+        ],
+        [
             InlineKeyboardButton("⏱️ 30 Minutes",
                                  callback_data="admin_giveaway_duration_30m")
         ],
@@ -625,7 +629,7 @@ async def start_giveaway_duration(update: Update,
 
 
 async def stop_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Stop active giveaway"""
+    """Stop active giveaway and notify all participants"""
     query = update.callback_query
     await query.answer()
 
@@ -634,9 +638,31 @@ async def stop_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not giveaway.get('active'):
         text = "🛑 <b>Stop Giveaway</b>\n\n❌ No active giveaway found!"
     else:
+        # Notify all participants about cancellation
+        participants = giveaway.get('participants', [])
+        platform = giveaway.get('platform', 'Unknown')
+        
+        cancellation_text = (
+            "🚫 <b>Giveaway Cancelled</b>\n\n"
+            f"⚠️ The <b>{platform}</b> giveaway has been cancelled by the administrators.\n\n"
+            "😔 We apologize for the inconvenience.\n\n"
+            "💡 <b>Don't worry!</b> Stay tuned for more giveaways coming soon!\n\n"
+            "🔔 Keep checking back for new opportunities!")
+        
+        # Send notification to each participant
+        for user_id in participants:
+            try:
+                await context.bot.send_message(
+                    chat_id=int(user_id),
+                    text=cancellation_text,
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                logger.error(f"Failed to notify user {user_id}: {e}")
+        
         giveaway['active'] = False
         save_json(GIVEAWAY_FILE, giveaway)
-        text = "🛑 <b>Giveaway Stopped</b>\n\n✅ The giveaway has been stopped successfully!"
+        text = f"🛑 <b>Giveaway Stopped</b>\n\n✅ The giveaway has been stopped successfully!\n\n📨 Sent cancellation notifications to {len(participants)} participant(s)."
 
     keyboard = [[
         InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")
@@ -961,6 +987,7 @@ async def handle_admin_message(update: Update,
 
             # Parse duration
             duration_map = {
+                '1m': 1,
                 '30m': 30,
                 '1h': 60,
                 '2h': 120,
@@ -1216,3 +1243,143 @@ async def handle_admin_message(update: Update,
             await update.message.reply_text("❌ User is already banned!",
                                             reply_markup=reply_markup,
                                             parse_mode='HTML')
+
+
+async def check_and_process_giveaways(context: ContextTypes.DEFAULT_TYPE):
+    """Background job to check for expired giveaways and select winners"""
+    try:
+        giveaway = load_json(GIVEAWAY_FILE)
+        
+        # Check if there's an active giveaway
+        if not giveaway.get('active'):
+            return
+        
+        # Check if the giveaway has expired
+        end_time_str = giveaway.get('end_time')
+        if not end_time_str:
+            return
+        
+        end_time = datetime.fromisoformat(end_time_str)
+        
+        # If giveaway hasn't ended yet, return
+        if datetime.now() < end_time:
+            return
+        
+        # Giveaway has ended! Process winners
+        logger.info("Giveaway has ended. Processing winners...")
+        
+        participants = giveaway.get('participants', [])
+        num_winners = giveaway.get('winners', 1)
+        platform = giveaway.get('platform', 'Unknown')
+        
+        # If no participants, just deactivate
+        if not participants:
+            giveaway['active'] = False
+            save_json(GIVEAWAY_FILE, giveaway)
+            logger.info("No participants in giveaway. Deactivating.")
+            return
+        
+        # Select random winners (don't select more winners than participants)
+        actual_winners = min(num_winners, len(participants))
+        winner_ids = random.sample(participants, actual_winners)
+        
+        logger.info(f"Selected {actual_winners} winners from {len(participants)} participants")
+        
+        # Get available keys for this platform
+        keys = load_json(KEYS_FILE)
+        available_keys = [k for k in keys if k.get('platform') == platform and k.get('status') != 'used' and k.get('remaining_uses', 0) > 0]
+        
+        # Platform images
+        platform_images = {
+            'Netflix': 'assets/netflix.png',
+            'Crunchyroll': 'assets/crunchyroll.png',
+            'WWE': 'assets/wwe.png',
+            'Spotify': 'assets/spotify.png'
+        }
+        
+        image_path = platform_images.get(platform)
+        
+        # Send keys to winners
+        keys_distributed = 0
+        for winner_id in winner_ids:
+            # Check if there are available keys
+            if keys_distributed >= len(available_keys):
+                # No more keys available, notify winner they'll get it later
+                try:
+                    await context.bot.send_message(
+                        chat_id=int(winner_id),
+                        text=(
+                            f"🎉 <b>Congratulations! You Won!</b> 🎉\n\n"
+                            f"🏆 You've been selected as a winner in the <b>{platform}</b> giveaway!\n\n"
+                            f"⚠️ <b>However</b>, we're currently out of keys.\n"
+                            f"An administrator will send you your key shortly.\n\n"
+                            f"💝 Thank you for participating!"
+                        ),
+                        parse_mode='HTML'
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to notify winner {winner_id}: {e}")
+                continue
+            
+            # Get a key for the winner
+            key_data = available_keys[keys_distributed]
+            key_code = key_data.get('key')
+            account_text = key_data.get('account_text', 'Premium Account')
+            
+            # Update key usage
+            key_data['remaining_uses'] = key_data.get('remaining_uses', 1) - 1
+            if 'used_by' not in key_data:
+                key_data['used_by'] = []
+            key_data['used_by'].append(str(winner_id))
+            
+            if key_data['remaining_uses'] <= 0:
+                key_data['status'] = 'used'
+            
+            # Save keys
+            save_json(KEYS_FILE, keys)
+            
+            # Create winner message
+            winner_text = (
+                f"🎉 <b>Congratulations! You Won!</b> 🎉\n\n"
+                f"🏆 You've been selected as a winner in the <b>{platform}</b> giveaway!\n\n"
+                f"🎁 <b>Your Prize:</b> {account_text}\n"
+                f"🔑 <b>Redemption Key:</b> <code>{key_code}</code>\n\n"
+                f"📝 <b>How to Redeem:</b>\n"
+                f"1️⃣ Use the /redeem command\n"
+                f"2️⃣ Send your key: <code>{key_code}</code>\n"
+                f"3️⃣ Get your account credentials!\n\n"
+                f"💡 <i>Tap the key to copy it!</i>\n\n"
+                f"💝 Thank you for participating in Premium Vault giveaways!"
+            )
+            
+            # Send with platform image if available
+            try:
+                if image_path and os.path.exists(image_path):
+                    with open(image_path, 'rb') as photo:
+                        await context.bot.send_photo(
+                            chat_id=int(winner_id),
+                            photo=photo,
+                            caption=winner_text,
+                            parse_mode='HTML'
+                        )
+                else:
+                    await context.bot.send_message(
+                        chat_id=int(winner_id),
+                        text=winner_text,
+                        parse_mode='HTML'
+                    )
+                keys_distributed += 1
+                logger.info(f"Sent key to winner {winner_id}")
+            except Exception as e:
+                logger.error(f"Failed to send key to winner {winner_id}: {e}")
+        
+        # Deactivate the giveaway
+        giveaway['active'] = False
+        giveaway['winners_selected'] = winner_ids
+        giveaway['keys_distributed'] = keys_distributed
+        save_json(GIVEAWAY_FILE, giveaway)
+        
+        logger.info(f"Giveaway processing complete. Distributed {keys_distributed} keys to {len(winner_ids)} winners.")
+        
+    except Exception as e:
+        logger.error(f"Error in check_and_process_giveaways: {e}")
