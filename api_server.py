@@ -501,6 +501,13 @@ def get_keys(platform):
     
     return jsonify({'success': True, 'keys': platform_keys})
 
+@app.route('/<path:path>')
+def catch_all(path):
+    if path and os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
+
 if __name__ == '__main__':
     ensure_credentials_dir()
     app.run(host='0.0.0.0', port=5000, debug=False)
