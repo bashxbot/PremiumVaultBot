@@ -485,9 +485,11 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
             parse_mode='HTML')
         return
 
-    # Get full user details
+    # Get full user details and platform info
     full_name = update.effective_user.full_name
     username_str = update.effective_user.username
+    platform_name = key_found.get('platform', 'Unknown')
+    account_text = key_found.get('account_text', 'Premium Account')
     
     # Claim credential and redeem key atomically
     claim_credential(credential['id'], str(user_id), username_str, full_name)
@@ -515,8 +517,6 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
         print(f"Failed to send admin notifications: {e}")
 
     # Send credential to user
-    platform_name = key_found.get('platform', 'Unknown')
-    account_text = key_found.get('account_text', 'Premium Account')
 
     # Prepare success message
     success_text = (
