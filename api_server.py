@@ -1,11 +1,16 @@
 
 from flask import Flask, request, jsonify, send_from_directory, session, redirect, url_for
 from flask_cors import CORS
-import json
 import os
 from datetime import datetime, timedelta
 from functools import wraps
 import secrets
+from db_setup import get_db_connection
+from db_helpers import (
+    get_platforms, get_platform_by_name, get_credentials_by_platform,
+    add_credential as db_add_credential, update_credential as db_update_credential,
+    delete_credential as db_delete_credential, get_keys_by_platform
+)
 
 app = Flask(__name__, static_folder='admin-panel/dist', static_url_path='')
 CORS(app)
@@ -25,45 +30,6 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(seconds=86400)
 
 PLATFORMS = ['netflix', 'crunchyroll', 'wwe', 'paramountplus', 'dazn', 'molotovtv', 'disneyplus', 'psnfa', 'xbox']
-CREDENTIALS_DIR = 'credentials'
-KEYS_FILE = 'bot/data/keys.json'
-USERS_FILE = 'bot/data/users.json'
-ADMIN_CREDS_FILE = 'admin_credentials.json'
-
-def load_json(filename):
-    try:
-        with open(filename, 'r') as f:
-            return json.load(f)
-    except:
-        return [] if 'keys' in filename or 'credentials' in filename or filename.endswith('.json') and 'users' not in filename else {}
-
-def save_json(filename, data):
-    with open(filename, 'w') as f:
-        json.dump(data, f, indent=2)
-
-def ensure_credentials_dir():
-    os.makedirs(CREDENTIALS_DIR, exist_ok=True)
-    for platform in PLATFORMS:
-        filepath = os.path.join(CREDENTIALS_DIR, f'{platform}.json')
-        if not os.path.exists(filepath):
-            save_json(filepath, [])
-
-def ensure_admin_credentials():
-    if not os.path.exists(ADMIN_CREDS_FILE):
-        admin_username = os.getenv('ADMIN_USERNAME', 'admin')
-        admin_password = os.getenv('ADMIN_PASSWORD', 'changeme')
-        
-        default_creds = {
-            'owner': {
-                'username': admin_username,
-                'password': admin_password,
-                'role': 'owner'
-            },
-            'admins': []
-        }
-        save_json(ADMIN_CREDS_FILE, default_creds)
-        return default_creds
-    return load_json(ADMIN_CREDS_FILE)
 
 def login_required(f):
     @wraps(f)
@@ -83,24 +49,22 @@ def login():
     username = data.get('username')
     password = data.get('password')
     
-    admin_creds = load_json(ADMIN_CREDS_FILE)
-    
-    # Check owner credentials
-    if admin_creds.get('owner', {}).get('username') == username and admin_creds.get('owner', {}).get('password') == password:
-        session.permanent = True
-        session['logged_in'] = True
-        session['username'] = username
-        session['role'] = 'owner'
-        return jsonify({'success': True, 'role': 'owner'})
-    
-    # Check admin credentials
-    for admin in admin_creds.get('admins', []):
-        if admin.get('username') == username and admin.get('password') == password:
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT username, password, role 
+            FROM admin_credentials 
+            WHERE username = %s
+        """, (username,))
+        user = cur.fetchone()
+        cur.close()
+        
+        if user and user[1] == password:
             session.permanent = True
             session['logged_in'] = True
-            session['username'] = username
-            session['role'] = 'admin'
-            return jsonify({'success': True, 'role': 'admin'})
+            session['username'] = user[0]
+            session['role'] = user[2]
+            return jsonify({'success': True, 'role': user[2]})
     
     return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
 
@@ -121,10 +85,16 @@ def get_admins():
     if session.get('role') != 'owner':
         return jsonify({'success': False, 'message': 'Only owner can view admins'}), 403
     
-    admin_creds = load_json(ADMIN_CREDS_FILE)
-    admins = admin_creds.get('admins', [])
-    # Don't send passwords
-    safe_admins = [{'username': a['username']} for a in admins]
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT username FROM admin_credentials 
+            WHERE role = 'admin'
+        """)
+        admins = cur.fetchall()
+        cur.close()
+        
+    safe_admins = [{'username': admin[0]} for admin in admins]
     return jsonify({'success': True, 'admins': safe_admins})
 
 @app.route('/api/admins', methods=['POST'])
@@ -140,20 +110,19 @@ def add_admin():
     if not username or not password:
         return jsonify({'success': False, 'message': 'Username and password required'}), 400
     
-    admin_creds = load_json(ADMIN_CREDS_FILE)
-    
-    # Check if username already exists
-    if admin_creds.get('owner', {}).get('username') == username:
-        return jsonify({'success': False, 'message': 'Username already exists'}), 400
-    
-    for admin in admin_creds.get('admins', []):
-        if admin.get('username') == username:
+    try:
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO admin_credentials (username, password, role)
+                VALUES (%s, %s, 'admin')
+            """, (username, password))
+            cur.close()
+        return jsonify({'success': True, 'message': 'Admin added successfully'})
+    except Exception as e:
+        if 'duplicate key' in str(e).lower() or 'unique' in str(e).lower():
             return jsonify({'success': False, 'message': 'Username already exists'}), 400
-    
-    admin_creds['admins'].append({'username': username, 'password': password, 'role': 'admin'})
-    save_json(ADMIN_CREDS_FILE, admin_creds)
-    
-    return jsonify({'success': True, 'message': 'Admin added successfully'})
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/admins/<username>', methods=['DELETE'])
 @login_required
@@ -161,11 +130,13 @@ def delete_admin(username):
     if session.get('role') != 'owner':
         return jsonify({'success': False, 'message': 'Only owner can delete admins'}), 403
     
-    admin_creds = load_json(ADMIN_CREDS_FILE)
-    admins = admin_creds.get('admins', [])
-    
-    admin_creds['admins'] = [a for a in admins if a['username'] != username]
-    save_json(ADMIN_CREDS_FILE, admin_creds)
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            DELETE FROM admin_credentials 
+            WHERE username = %s AND role = 'admin'
+        """, (username,))
+        cur.close()
     
     return jsonify({'success': True, 'message': 'Admin deleted successfully'})
 
@@ -178,31 +149,24 @@ def change_username():
     if not new_username:
         return jsonify({'success': False, 'message': 'New username is required'}), 400
     
-    admin_creds = load_json(ADMIN_CREDS_FILE)
     current_username = session.get('username')
-    current_role = session.get('role')
     
-    # Check if username already exists
-    if admin_creds.get('owner', {}).get('username') == new_username:
-        return jsonify({'success': False, 'message': 'Username already exists'}), 400
-    
-    for admin in admin_creds.get('admins', []):
-        if admin.get('username') == new_username:
+    try:
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                UPDATE admin_credentials 
+                SET username = %s 
+                WHERE username = %s
+            """, (new_username, current_username))
+            cur.close()
+        
+        session['username'] = new_username
+        return jsonify({'success': True, 'message': 'Username changed successfully'})
+    except Exception as e:
+        if 'duplicate key' in str(e).lower() or 'unique' in str(e).lower():
             return jsonify({'success': False, 'message': 'Username already exists'}), 400
-    
-    # Update username based on role
-    if current_role == 'owner':
-        admin_creds['owner']['username'] = new_username
-    else:
-        for admin in admin_creds.get('admins', []):
-            if admin.get('username') == current_username:
-                admin['username'] = new_username
-                break
-    
-    save_json(ADMIN_CREDS_FILE, admin_creds)
-    session['username'] = new_username
-    
-    return jsonify({'success': True, 'message': 'Username changed successfully'})
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/change-password', methods=['POST'])
 @login_required
@@ -214,46 +178,44 @@ def change_password():
     if not current_password or not new_password:
         return jsonify({'success': False, 'message': 'Current and new passwords are required'}), 400
     
-    admin_creds = load_json(ADMIN_CREDS_FILE)
     current_username = session.get('username')
-    current_role = session.get('role')
     
-    # Verify current password
-    if current_role == 'owner':
-        if admin_creds.get('owner', {}).get('password') != current_password:
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT password FROM admin_credentials 
+            WHERE username = %s
+        """, (current_username,))
+        result = cur.fetchone()
+        
+        if not result or result[0] != current_password:
+            cur.close()
             return jsonify({'success': False, 'message': 'Current password is incorrect'}), 401
-        admin_creds['owner']['password'] = new_password
-    else:
-        found = False
-        for admin in admin_creds.get('admins', []):
-            if admin.get('username') == current_username:
-                if admin.get('password') != current_password:
-                    return jsonify({'success': False, 'message': 'Current password is incorrect'}), 401
-                admin['password'] = new_password
-                found = True
-                break
-        if not found:
-            return jsonify({'success': False, 'message': 'User not found'}), 404
-    
-    save_json(ADMIN_CREDS_FILE, admin_creds)
+        
+        cur.execute("""
+            UPDATE admin_credentials 
+            SET password = %s 
+            WHERE username = %s
+        """, (new_password, current_username))
+        cur.close()
     
     return jsonify({'success': True, 'message': 'Password changed successfully'})
 
 @app.route('/api/telegram-id', methods=['GET'])
 @login_required
 def get_telegram_id():
-    admin_creds = load_json(ADMIN_CREDS_FILE)
     current_username = session.get('username')
-    current_role = session.get('role')
     
-    if current_role == 'owner':
-        telegram_id = admin_creds.get('owner', {}).get('telegram_user_id', '')
-    else:
-        telegram_id = ''
-        for admin in admin_creds.get('admins', []):
-            if admin.get('username') == current_username:
-                telegram_id = admin.get('telegram_user_id', '')
-                break
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT telegram_user_id FROM admin_credentials 
+            WHERE username = %s
+        """, (current_username,))
+        result = cur.fetchone()
+        cur.close()
+        
+        telegram_id = result[0] if result and result[0] else ''
     
     return jsonify({'success': True, 'telegram_user_id': telegram_id})
 
@@ -266,27 +228,19 @@ def set_telegram_id():
     if not telegram_id:
         return jsonify({'success': False, 'message': 'Telegram User ID is required'}), 400
     
-    # Validate it's a number
     if not telegram_id.isdigit():
         return jsonify({'success': False, 'message': 'Telegram User ID must be a number'}), 400
     
-    admin_creds = load_json(ADMIN_CREDS_FILE)
     current_username = session.get('username')
-    current_role = session.get('role')
     
-    if current_role == 'owner':
-        admin_creds['owner']['telegram_user_id'] = telegram_id
-    else:
-        found = False
-        for admin in admin_creds.get('admins', []):
-            if admin.get('username') == current_username:
-                admin['telegram_user_id'] = telegram_id
-                found = True
-                break
-        if not found:
-            return jsonify({'success': False, 'message': 'User not found'}), 404
-    
-    save_json(ADMIN_CREDS_FILE, admin_creds)
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE admin_credentials 
+            SET telegram_user_id = %s 
+            WHERE username = %s
+        """, (telegram_id, current_username))
+        cur.close()
     
     return jsonify({'success': True, 'message': 'Telegram User ID updated successfully'})
 
@@ -294,21 +248,56 @@ def set_telegram_id():
 @login_required
 def get_stats():
     try:
-        ensure_credentials_dir()
         stats = {}
-        for platform in PLATFORMS:
-            filepath = os.path.join(CREDENTIALS_DIR, f'{platform}.json')
-            creds = load_json(filepath)
-            stats[platform] = {
-                'total': len(creds),
-                'active': len([c for c in creds if c.get('status') == 'active']),
-                'claimed': len([c for c in creds if c.get('status') == 'claimed']),
-                'inactive': len([c for c in creds if c.get('status') == 'inactive'])
-            }
         
-        keys_data = load_json(KEYS_FILE) if os.path.exists(KEYS_FILE) else []
-        total_keys = len(keys_data)
-        active_keys = len([k for k in keys_data if k.get('status') == 'active'])
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            
+            for platform in PLATFORMS:
+                platform_title = platform.capitalize()
+                if platform == 'paramountplus':
+                    platform_title = 'ParamountPlus'
+                elif platform == 'molotovtv':
+                    platform_title = 'MolotovTV'
+                elif platform == 'disneyplus':
+                    platform_title = 'DisneyPlus'
+                elif platform == 'psnfa':
+                    platform_title = 'PSNFA'
+                elif platform == 'xbox':
+                    platform_title = 'Xbox'
+                elif platform == 'crunchyroll':
+                    platform_title = 'Crunchyroll'
+                elif platform == 'wwe':
+                    platform_title = 'WWE'
+                elif platform == 'dazn':
+                    platform_title = 'Dazn'
+                
+                cur.execute("""
+                    SELECT 
+                        COUNT(*) as total,
+                        COUNT(*) FILTER (WHERE status = 'active') as active,
+                        COUNT(*) FILTER (WHERE status = 'claimed') as claimed,
+                        COUNT(*) FILTER (WHERE status = 'inactive') as inactive
+                    FROM credentials c
+                    JOIN platforms p ON c.platform_id = p.id
+                    WHERE p.name = %s
+                """, (platform_title,))
+                result = cur.fetchone()
+                
+                stats[platform] = {
+                    'total': result[0] if result else 0,
+                    'active': result[1] if result else 0,
+                    'claimed': result[2] if result else 0,
+                    'inactive': result[3] if result else 0
+                }
+            
+            cur.execute("SELECT COUNT(*) FROM keys")
+            total_keys = cur.fetchone()[0]
+            
+            cur.execute("SELECT COUNT(*) FROM keys WHERE status = 'active'")
+            active_keys = cur.fetchone()[0]
+            
+            cur.close()
         
         return jsonify({
             'success': True,
@@ -326,8 +315,25 @@ def get_credentials(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
     
-    filepath = os.path.join(CREDENTIALS_DIR, f'{platform}.json')
-    credentials = load_json(filepath)
+    platform_title = platform.capitalize()
+    if platform == 'paramountplus':
+        platform_title = 'ParamountPlus'
+    elif platform == 'molotovtv':
+        platform_title = 'MolotovTV'
+    elif platform == 'disneyplus':
+        platform_title = 'DisneyPlus'
+    elif platform == 'psnfa':
+        platform_title = 'PSNFA'
+    elif platform == 'xbox':
+        platform_title = 'Xbox'
+    elif platform == 'crunchyroll':
+        platform_title = 'Crunchyroll'
+    elif platform == 'wwe':
+        platform_title = 'WWE'
+    elif platform == 'dazn':
+        platform_title = 'Dazn'
+    
+    credentials = get_credentials_by_platform(platform_title)
     return jsonify({'success': True, 'credentials': credentials})
 
 @app.route('/api/credentials/<platform>', methods=['POST'])
@@ -344,18 +350,28 @@ def add_credential(platform):
     if not email or not password:
         return jsonify({'success': False, 'message': 'Email and password are required'}), 400
     
-    filepath = os.path.join(CREDENTIALS_DIR, f'{platform}.json')
-    credentials = load_json(filepath)
+    platform_title = platform.capitalize()
+    if platform == 'paramountplus':
+        platform_title = 'ParamountPlus'
+    elif platform == 'molotovtv':
+        platform_title = 'MolotovTV'
+    elif platform == 'disneyplus':
+        platform_title = 'DisneyPlus'
+    elif platform == 'psnfa':
+        platform_title = 'PSNFA'
+    elif platform == 'xbox':
+        platform_title = 'Xbox'
+    elif platform == 'crunchyroll':
+        platform_title = 'Crunchyroll'
+    elif platform == 'wwe':
+        platform_title = 'WWE'
+    elif platform == 'dazn':
+        platform_title = 'Dazn'
     
-    credentials.append({
-        'email': email,
-        'password': password,
-        'status': status,
-        'created_at': datetime.now().isoformat()
-    })
-    
-    save_json(filepath, credentials)
-    return jsonify({'success': True, 'message': 'Credential added successfully'})
+    cred_id = db_add_credential(platform_title, email, password, status)
+    if cred_id:
+        return jsonify({'success': True, 'message': 'Credential added successfully'})
+    return jsonify({'success': False, 'message': 'Failed to add credential'}), 500
 
 @app.route('/api/credentials/<platform>/upload', methods=['POST'])
 @login_required
@@ -370,8 +386,23 @@ def upload_credentials(platform):
     if file.filename == '':
         return jsonify({'success': False, 'message': 'No file selected'}), 400
     
-    filepath = os.path.join(CREDENTIALS_DIR, f'{platform}.json')
-    credentials = load_json(filepath)
+    platform_title = platform.capitalize()
+    if platform == 'paramountplus':
+        platform_title = 'ParamountPlus'
+    elif platform == 'molotovtv':
+        platform_title = 'MolotovTV'
+    elif platform == 'disneyplus':
+        platform_title = 'DisneyPlus'
+    elif platform == 'psnfa':
+        platform_title = 'PSNFA'
+    elif platform == 'xbox':
+        platform_title = 'Xbox'
+    elif platform == 'crunchyroll':
+        platform_title = 'Crunchyroll'
+    elif platform == 'wwe':
+        platform_title = 'WWE'
+    elif platform == 'dazn':
+        platform_title = 'Dazn'
     
     content = file.read().decode('utf-8')
     lines = content.strip().split('\n')
@@ -390,68 +421,48 @@ def upload_credentials(platform):
             status = parts[2].strip() if len(parts) >= 3 else 'active'
             
             if email and password and '@' in email:
-                credentials.append({
-                    'email': email,
-                    'password': password,
-                    'status': status,
-                    'created_at': datetime.now().isoformat()
-                })
-                added_count += 1
+                cred_id = db_add_credential(platform_title, email, password, status)
+                if cred_id:
+                    added_count += 1
+                else:
+                    skipped_count += 1
             else:
                 skipped_count += 1
         else:
             skipped_count += 1
     
-    save_json(filepath, credentials)
     message = f'Successfully added {added_count} credentials'
     if skipped_count > 0:
         message += f' ({skipped_count} skipped due to invalid format)'
     
     return jsonify({'success': True, 'message': message, 'added': added_count, 'skipped': skipped_count})
 
-@app.route('/api/credentials/<platform>/<int:index>', methods=['DELETE'])
+@app.route('/api/credentials/<platform>/<int:cred_id>', methods=['DELETE'])
 @login_required
-def delete_credential(platform, index):
+def delete_credential(platform, cred_id):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
     
-    filepath = os.path.join(CREDENTIALS_DIR, f'{platform}.json')
-    credentials = load_json(filepath)
-    
-    if 0 <= index < len(credentials):
-        credentials.pop(index)
-        save_json(filepath, credentials)
+    if db_delete_credential(cred_id):
         return jsonify({'success': True, 'message': 'Credential deleted successfully'})
     
-    return jsonify({'success': False, 'message': 'Invalid index'}), 400
+    return jsonify({'success': False, 'message': 'Failed to delete credential'}), 500
 
-@app.route('/api/credentials/<platform>/<int:index>', methods=['PUT'])
+@app.route('/api/credentials/<platform>/<int:cred_id>', methods=['PUT'])
 @login_required
-def edit_credential(platform, index):
+def edit_credential(platform, cred_id):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
     
-    filepath = os.path.join(CREDENTIALS_DIR, f'{platform}.json')
-    credentials = load_json(filepath)
+    data = request.json
+    email = data.get('email')
+    password = data.get('password')
+    status = data.get('status')
     
-    if 0 <= index < len(credentials):
-        data = request.json
-        email = data.get('email')
-        password = data.get('password')
-        status = data.get('status')
-        
-        if email:
-            credentials[index]['email'] = email
-        if password:
-            credentials[index]['password'] = password
-        if status:
-            credentials[index]['status'] = status
-        
-        credentials[index]['updated_at'] = datetime.now().isoformat()
-        save_json(filepath, credentials)
+    if db_update_credential(cred_id, email, password, status):
         return jsonify({'success': True, 'message': 'Credential updated successfully'})
     
-    return jsonify({'success': False, 'message': 'Invalid index'}), 400
+    return jsonify({'success': False, 'message': 'Failed to update credential'}), 500
 
 @app.route('/api/credentials/<platform>/delete-all', methods=['DELETE'])
 @login_required
@@ -459,8 +470,33 @@ def delete_all_credentials(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
     
-    filepath = os.path.join(CREDENTIALS_DIR, f'{platform}.json')
-    save_json(filepath, [])
+    platform_title = platform.capitalize()
+    if platform == 'paramountplus':
+        platform_title = 'ParamountPlus'
+    elif platform == 'molotovtv':
+        platform_title = 'MolotovTV'
+    elif platform == 'disneyplus':
+        platform_title = 'DisneyPlus'
+    elif platform == 'psnfa':
+        platform_title = 'PSNFA'
+    elif platform == 'xbox':
+        platform_title = 'Xbox'
+    elif platform == 'crunchyroll':
+        platform_title = 'Crunchyroll'
+    elif platform == 'wwe':
+        platform_title = 'WWE'
+    elif platform == 'dazn':
+        platform_title = 'Dazn'
+    
+    platform_data = get_platform_by_name(platform_title)
+    if not platform_data:
+        return jsonify({'success': False, 'message': 'Platform not found'}), 404
+    
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM credentials WHERE platform_id = %s", (platform_data['id'],))
+        cur.close()
+    
     return jsonify({'success': True, 'message': f'All {platform} credentials deleted successfully'})
 
 @app.route('/api/keys/<platform>/delete-all', methods=['DELETE'])
@@ -469,11 +505,27 @@ def delete_all_keys(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
     
-    from db_helpers import get_db_connection
+    platform_title = platform.capitalize()
+    if platform == 'paramountplus':
+        platform_title = 'ParamountPlus'
+    elif platform == 'molotovtv':
+        platform_title = 'MolotovTV'
+    elif platform == 'disneyplus':
+        platform_title = 'DisneyPlus'
+    elif platform == 'psnfa':
+        platform_title = 'PSNFA'
+    elif platform == 'xbox':
+        platform_title = 'Xbox'
+    elif platform == 'crunchyroll':
+        platform_title = 'Crunchyroll'
+    elif platform == 'wwe':
+        platform_title = 'WWE'
+    elif platform == 'dazn':
+        platform_title = 'Dazn'
     
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT id FROM platforms WHERE name = %s", (platform,))
+        cur.execute("SELECT id FROM platforms WHERE name = %s", (platform_title,))
         result = cur.fetchone()
         if result:
             platform_id = result[0]
@@ -488,9 +540,25 @@ def get_keys(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
     
-    from db_helpers import get_keys_by_platform
+    platform_title = platform.capitalize()
+    if platform == 'paramountplus':
+        platform_title = 'ParamountPlus'
+    elif platform == 'molotovtv':
+        platform_title = 'MolotovTV'
+    elif platform == 'disneyplus':
+        platform_title = 'DisneyPlus'
+    elif platform == 'psnfa':
+        platform_title = 'PSNFA'
+    elif platform == 'xbox':
+        platform_title = 'Xbox'
+    elif platform == 'crunchyroll':
+        platform_title = 'Crunchyroll'
+    elif platform == 'wwe':
+        platform_title = 'WWE'
+    elif platform == 'dazn':
+        platform_title = 'Dazn'
     
-    platform_keys = get_keys_by_platform(platform)
+    platform_keys = get_keys_by_platform(platform_title)
     
     return jsonify({'success': True, 'keys': platform_keys})
 
@@ -500,9 +568,6 @@ def catch_all(path):
         return send_from_directory(app.static_folder, path)
     else:
         return send_from_directory(app.static_folder, 'index.html')
-
-ensure_credentials_dir()
-ensure_admin_credentials()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
