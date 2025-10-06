@@ -562,6 +562,84 @@ def get_keys(platform):
     
     return jsonify({'success': True, 'keys': platform_keys})
 
+@app.route('/api/redemption-history', methods=['GET'])
+@login_required
+def get_redemption_history():
+    """Get history of all key redemptions with user details"""
+    try:
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT 
+                    kr.user_id,
+                    kr.username,
+                    kr.full_name,
+                    kr.redeemed_at,
+                    k.key_code,
+                    p.name as platform
+                FROM key_redemptions kr
+                JOIN keys k ON kr.key_id = k.id
+                JOIN platforms p ON k.platform_id = p.id
+                ORDER BY kr.redeemed_at DESC
+                LIMIT 100
+            """)
+            redemptions = cur.fetchall()
+            cur.close()
+            
+            history = []
+            for r in redemptions:
+                history.append({
+                    'user_id': r[0],
+                    'username': r[1] if r[1] else 'N/A',
+                    'full_name': r[2] if r[2] else 'N/A',
+                    'redeemed_at': r[3].isoformat() if r[3] else None,
+                    'key_code': r[4],
+                    'platform': r[5]
+                })
+            
+            return jsonify({'success': True, 'history': history})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/claim-history', methods=['GET'])
+@login_required
+def get_claim_history():
+    """Get history of all credential claims with user details"""
+    try:
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT 
+                    c.claimed_by as user_id,
+                    c.claimed_by_username,
+                    c.claimed_by_name,
+                    c.claimed_at,
+                    c.email,
+                    p.name as platform
+                FROM credentials c
+                JOIN platforms p ON c.platform_id = p.id
+                WHERE c.status = 'claimed' AND c.claimed_by IS NOT NULL
+                ORDER BY c.claimed_at DESC
+                LIMIT 100
+            """)
+            claims = cur.fetchall()
+            cur.close()
+            
+            history = []
+            for c in claims:
+                history.append({
+                    'user_id': c[0],
+                    'username': c[1] if c[1] else 'N/A',
+                    'full_name': c[2] if c[2] else 'N/A',
+                    'claimed_at': c[3].isoformat() if c[3] else None,
+                    'email': c[4],
+                    'platform': c[5]
+                })
+            
+            return jsonify({'success': True, 'history': history})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @app.route('/<path:path>')
 def catch_all(path):
     if path and os.path.exists(os.path.join(app.static_folder, path)):
