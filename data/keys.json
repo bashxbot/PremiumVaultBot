@@ -80,5 +80,77 @@
     "redeemed_at": null,
     "redeemed_by": [],
     "used_by": []
+  },
+  {
+    "key": "DAZN-W368-9MEP-YDFM",
+    "platform": "Dazn",
+    "uses": 1,
+    "remaining_uses": 1,
+    "account_text": "h",
+    "status": "active",
+    "created_at": "2025-10-06T13:24:40.285406",
+    "redeemed_at": null,
+    "redeemed_by": [],
+    "used_by": []
+  },
+  {
+    "key": "DAZN-8E8O-OXA3-IW6J",
+    "platform": "Dazn",
+    "uses": 1,
+    "remaining_uses": 1,
+    "account_text": "h",
+    "status": "active",
+    "created_at": "2025-10-06T13:24:40.285427",
+    "redeemed_at": null,
+    "redeemed_by": [],
+    "used_by": []
+  },
+  {
+    "key": "DAZN-ZR59-LBFQ-Y5QW",
+    "platform": "Dazn",
+    "uses": 1,
+    "remaining_uses": 1,
+    "account_text": "h",
+    "status": "active",
+    "created_at": "2025-10-06T13:24:40.285440",
+    "redeemed_at": null,
+    "redeemed_by": [],
+    "used_by": []
+  },
+  {
+    "key": "DAZN-U7HK-ZSU8-I6TD",
+    "platform": "Dazn",
+    "uses": 1,
+    "remaining_uses": 1,
+    "account_text": "h",
+    "status": "active",
+    "created_at": "2025-10-06T13:24:40.285452",
+    "redeemed_at": null,
+    "redeemed_by": [],
+    "used_by": []
+  },
+  {
+    "key": "DAZN-172J-AIKB-P1XP",
+    "platform": "Dazn",
+    "uses": 1,
+    "remaining_uses": 1,
+    "account_text": "h",
+    "status": "active",
+    "created_at": "2025-10-06T13:24:40.285465",
+    "redeemed_at": null,
+    "redeemed_by": [],
+    "used_by": []
+  },
+  {
+    "key": "DAZN-A77R-JOIH-4AOR",
+    "platform": "Dazn",
+    "uses": 1,
+    "remaining_uses": 1,
+    "account_text": "h",
+    "status": "active",
+    "created_at": "2025-10-06T13:24:40.285477",
+    "redeemed_at": null,
+    "redeemed_by": [],
+    "used_by": []
   }
 ]
