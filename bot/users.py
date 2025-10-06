@@ -599,7 +599,6 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     platform_images = {
         'Netflix': 'assets/platform-logos/netflix.jpg',
         'Crunchyroll': 'assets/platform-logos/crunchyroll.jpg',
-        'Spotify': 'assets/platform-logos/spotify.jpg',
         'WWE': 'assets/platform-logos/wwe.jpg',
         'ParamountPlus': 'assets/platform-logos/paramountplus.jpg',
         'Dazn': 'assets/platform-logos/dazn.jpg',
