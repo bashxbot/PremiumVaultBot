@@ -597,15 +597,16 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     # Get platform logo
     project_root = get_project_root()
     platform_images = {
-        'Netflix': 'attached_assets/platforms/netflix.png',
-        'Crunchyroll': 'attached_assets/platforms/crunchyroll.png',
-        'WWE': 'attached_assets/platforms/wwe.png',
-        'ParamountPlus': 'attached_assets/platforms/paramountplus.png',
-        'Dazn': 'attached_assets/platforms/dazn.png',
-        'MolotovTV': 'attached_assets/platforms/molotovtv.png',
-        'DisneyPlus': 'attached_assets/platforms/disneyplus.png',
-        'PSNFA': 'attached_assets/platforms/psnfa.png',
-        'Xbox': 'attached_assets/platforms/xbox.png'
+        'Netflix': 'assets/platform-logos/netflix.jpg',
+        'Crunchyroll': 'assets/platform-logos/crunchyroll.jpg',
+        'Spotify': 'assets/platform-logos/spotify.jpg',
+        'WWE': 'assets/platform-logos/wwe.jpg',
+        'ParamountPlus': 'assets/platform-logos/paramountplus.jpg',
+        'Dazn': 'assets/platform-logos/dazn.jpg',
+        'MolotovTV': 'assets/platform-logos/molotovtv.jpg',
+        'DisneyPlus': 'assets/platform-logos/disneyplus.jpg',
+        'PSNFA': 'assets/platform-logos/psnfa.jpg',
+        'Xbox': 'assets/platform-logos/xbox.jpg'
     }
     logo_path = platform_images.get(platform_name)
     if logo_path:

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { MdDashboard, MdCreditCard, MdVpnKey, MdChevronRight, MdExpandMore, MdLogout, MdPeople, MdSettings, MdPerson } from 'react-icons/md'
-import { SiNetflix, SiCrunchyroll } from 'react-icons/si'
+import { SiNetflix, SiCrunchyroll, SiSpotify } from 'react-icons/si'
 import { GiBoxingGlove } from 'react-icons/gi'
 import { FaStar, FaTv, FaGamepad, FaXbox } from 'react-icons/fa'
 import { MdSportsKabaddi } from 'react-icons/md'
@@ -9,6 +9,7 @@ import './Sidebar.css'
 const platformIcons = {
   netflix: SiNetflix,
   crunchyroll: SiCrunchyroll,
+  spotify: SiSpotify,
   wwe: GiBoxingGlove,
   paramountplus: FaStar,
   dazn: MdSportsKabaddi,
