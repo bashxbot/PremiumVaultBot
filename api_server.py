@@ -24,7 +24,7 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(seconds=86400)
 
-PLATFORMS = ['netflix', 'crunchyroll', 'spotify', 'wwe']
+PLATFORMS = ['netflix', 'crunchyroll', 'wwe', 'paramountplus', 'dazn', 'molotovtv', 'disneyplus', 'psnfa', 'xbox']
 CREDENTIALS_DIR = 'credentials'
 KEYS_FILE = 'bot/data/keys.json'
 USERS_FILE = 'bot/data/users.json'

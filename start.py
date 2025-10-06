@@ -100,6 +100,16 @@ def run_flask():
 if __name__ == "__main__":
     logger.info("🚀 Starting Premium Vault - Bot & Admin Panel")
     
+    # Initialize database
+    try:
+        from db_setup import init_database
+        logger.info("📊 Initializing PostgreSQL database...")
+        init_database()
+        logger.info("✅ Database initialized successfully!")
+    except Exception as e:
+        logger.error(f"❌ Database initialization failed: {e}")
+        logger.info("⚠️ Continuing without database - please check DATABASE_URL")
+    
     # Start Flask in a separate thread
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()

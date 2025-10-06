@@ -31,7 +31,7 @@ GIVEAWAY_FILE = 'data/giveaway.json'
 ADMIN_CREDS_FILE = '../admin_credentials.json'
 
 # Available platforms
-PLATFORMS = ['Netflix', 'Crunchyroll', 'Spotify', 'WWE']
+PLATFORMS = ['Netflix', 'Crunchyroll', 'WWE', 'ParamountPlus', 'Dazn', 'MolotovTV', 'DisneyPlus', 'PSNFA', 'Xbox']
 
 
 def ensure_data_files():
@@ -180,8 +180,13 @@ async def admin_generate_keys_platform(update: Update,
         emoji = {
             "Netflix": "🎬",
             "Crunchyroll": "🍜",
-            "Spotify": "🎵",
-            "WWE": "🤼"
+            "WWE": "🤼",
+            "ParamountPlus": "⭐",
+            "Dazn": "🥊",
+            "MolotovTV": "📺",
+            "DisneyPlus": "🏰",
+            "PSNFA": "🎮",
+            "Xbox": "🎯"
         }.get(platform, "📦")
         keyboard.append([
             InlineKeyboardButton(
@@ -211,8 +216,13 @@ async def admin_generate_credentials_platform(
         emoji = {
             "Netflix": "🎬",
             "Crunchyroll": "🍜",
-            "Spotify": "🎵",
-            "WWE": "🤼"
+            "WWE": "🤼",
+            "ParamountPlus": "⭐",
+            "Dazn": "🥊",
+            "MolotovTV": "📺",
+            "DisneyPlus": "🏰",
+            "PSNFA": "🎮",
+            "Xbox": "🎯"
         }.get(platform, "📦")
         keyboard.append([
             InlineKeyboardButton(
@@ -405,8 +415,13 @@ async def show_bot_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
             emoji = {
                 "Netflix": "🎬",
                 "Crunchyroll": "🍜",
-                "Spotify": "🎵",
-                "WWE": "🤼"
+                "WWE": "🤼",
+                "ParamountPlus": "⭐",
+                "Dazn": "🥊",
+                "MolotovTV": "📺",
+                "DisneyPlus": "🏰",
+                "PSNFA": "🎮",
+                "Xbox": "🎯"
             }.get(platform, "📦")
             stats_text += f"{emoji} <b>{platform}:</b> {stats['total']} total, {stats['active']} active, {stats['used']} used\n"
 
@@ -430,8 +445,13 @@ async def list_all_keys(update: Update, context: ContextTypes.DEFAULT_TYPE):
         emoji = {
             "Netflix": "🎬",
             "Crunchyroll": "🍜",
-            "Spotify": "🎵",
-            "WWE": "🤼"
+            "WWE": "🤼",
+            "ParamountPlus": "⭐",
+            "Dazn": "🥊",
+            "MolotovTV": "📺",
+            "DisneyPlus": "🏰",
+            "PSNFA": "🎮",
+            "Xbox": "🎯"
         }.get(platform, "📦")
         keyboard.append([
             InlineKeyboardButton(
@@ -556,8 +576,13 @@ async def start_giveaway_platform(update: Update,
         emoji = {
             "Netflix": "🎬",
             "Crunchyroll": "🍜",
-            "Spotify": "🎵",
-            "WWE": "🤼"
+            "WWE": "🤼",
+            "ParamountPlus": "⭐",
+            "Dazn": "🥊",
+            "MolotovTV": "📺",
+            "DisneyPlus": "🏰",
+            "PSNFA": "🎮",
+            "Xbox": "🎯"
         }.get(platform, "📦")
         keyboard.append([
             InlineKeyboardButton(
@@ -683,8 +708,13 @@ async def revoke_key_platform(update: Update,
         emoji = {
             "Netflix": "🎬",
             "Crunchyroll": "🍜",
-            "Spotify": "🎵",
-            "WWE": "🤼"
+            "WWE": "🤼",
+            "ParamountPlus": "⭐",
+            "Dazn": "🥊",
+            "MolotovTV": "📺",
+            "DisneyPlus": "🏰",
+            "PSNFA": "🎮",
+            "Xbox": "🎯"
         }.get(platform, "📦")
         keyboard.append([
             InlineKeyboardButton(
@@ -955,7 +985,12 @@ async def handle_admin_message(update: Update,
             'netflix': 'attached_assets/platforms/netflix.png',
             'crunchyroll': 'attached_assets/platforms/crunchyroll.png',
             'wwe': 'attached_assets/platforms/wwe.png',
-            'spotify': 'attached_assets/platforms/spotify.png'
+            'paramountplus': 'attached_assets/platforms/paramountplus.png',
+            'dazn': 'attached_assets/platforms/dazn.png',
+            'molotv': 'attached_assets/platforms/molotov.png',
+            'disneyplus': 'attached_assets/platforms/disneyplus.png',
+            'psnfa': 'attached_assets/platforms/psnfa.png',
+            'xbox': 'attached_assets/platforms/xbox.png'
         }
 
         image_path = platform_images.get(platform.lower())
@@ -1135,7 +1170,12 @@ async def handle_admin_message(update: Update,
                 'netflix': 'attached_assets/platforms/netflix.png',
                 'crunchyroll': 'attached_assets/platforms/crunchyroll.png',
                 'wwe': 'attached_assets/platforms/wwe.png',
-                'spotify': 'attached_assets/platforms/spotify.png'
+                'paramountplus': 'attached_assets/platforms/paramountplus.png',
+                'dazn': 'attached_assets/platforms/dazn.png',
+                'molotv': 'attached_assets/platforms/molotov.png',
+                'disneyplus': 'attached_assets/platforms/disneyplus.png',
+                'psnfa': 'attached_assets/platforms/psnfa.png',
+                'xbox': 'attached_assets/platforms/xbox.png'
             }
 
             image_path = platform_images.get(platform)
@@ -1293,7 +1333,12 @@ async def check_and_process_giveaways(context: ContextTypes.DEFAULT_TYPE):
             'Netflix': 'attached_assets/platforms/netflix.png',
             'Crunchyroll': 'attached_assets/platforms/crunchyroll.png',
             'WWE': 'attached_assets/platforms/wwe.png',
-            'Spotify': 'attached_assets/platforms/spotify.png'
+            'ParamountPlus': 'attached_assets/platforms/paramountplus.png',
+            'Dazn': 'attached_assets/platforms/dazn.png',
+            'MolotovTV': 'attached_assets/platforms/molotov.png',
+            'DisneyPlus': 'attached_assets/platforms/disneyplus.png',
+            'PSNFA': 'attached_assets/platforms/psnfa.png',
+            'Xbox': 'attached_assets/platforms/xbox.png'
         }
 
         image_path = platform_images.get(platform)

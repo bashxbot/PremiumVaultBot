@@ -599,7 +599,12 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
         'Netflix': 'attached_assets/platforms/netflix.png',
         'Crunchyroll': 'attached_assets/platforms/crunchyroll.png',
         'WWE': 'attached_assets/platforms/wwe.png',
-        'Spotify': 'attached_assets/platforms/spotify.png'
+        'ParamountPlus': 'attached_assets/platforms/paramountplus.png',
+        'Dazn': 'attached_assets/platforms/dazn.png',
+        'MolotovTV': 'attached_assets/platforms/molotovtv.png',
+        'DisneyPlus': 'attached_assets/platforms/disneyplus.png',
+        'PSNFA': 'attached_assets/platforms/psnfa.png',
+        'Xbox': 'attached_assets/platforms/xbox.png'
     }
     logo_path = platform_images.get(platform_name)
     
