@@ -1,128 +1,81 @@
-# Premium Vault Bot
+# Premium Vault Bot - Project Documentation
 
 ## Overview
+Telegram bot and web admin panel for managing premium account credentials (Netflix, Crunchyroll, WWE, DisneyPlus, etc.) with key redemption functionality.
 
-Premium Vault Bot is a Telegram bot designed for managing premium account giveaways. The bot allows administrators to generate redemption keys for various streaming and entertainment platforms (Netflix, Crunchyroll, Spotify, WWE), manage giveaways, and distribute premium account credentials to users. Regular users can redeem keys to receive premium account credentials after joining required Telegram channels.
+## Recent Changes (October 2025)
 
-The bot features a dual-interface design: an administrative panel for key generation, statistics, user management, and giveaway control, plus a user-facing interface for key redemption with mandatory channel membership verification.
+### ✅ Complete Migration to PostgreSQL (Completed)
+- **Date:** October 6, 2025
+- **Status:** COMPLETED
+- All data storage migrated from JSON files to PostgreSQL database
+- Both bot and web admin panel now use unified database
+- Complete elimination of JSON file storage
+
+### Database Implementation
+- **Schema Created:** platforms, credentials, keys, key_redemptions, users, banned_users, giveaways, giveaway_participants, admin_credentials
+- **User Tracking:** Full user details (user_id, username, full_name) tracked for all redemptions and claims
+- **Admin Notifications:** Real-time Telegram notifications sent to all admins when keys are redeemed or credentials claimed
+
+### Migration Completed
+1. ✅ Database schema with tracking fields (username, full_name)
+2. ✅ Admin credentials migrated from admin_credentials.json
+3. ✅ Platform credentials migrated from credentials/*.json files (12 credentials)
+4. ✅ API server completely refactored (~500 lines) to use PostgreSQL
+5. ✅ Bot updated to save full user details and send admin notifications
+6. ✅ API endpoints added for redemption/claim history
+7. ✅ All JSON data files removed
+
+### Key Features
+- **Unified Database:** Single PostgreSQL database for bot and web panel
+- **User Tracking:** Complete details (name, chat_id, username) for all redemptions/claims
+- **Real-time Notifications:** Instant Telegram alerts to all admins
+- **History Tracking:** Full redemption and claim history with user details
+
+## Project Architecture
+
+### Tech Stack
+- **Backend:** Python Flask API server
+- **Bot:** Python Telegram Bot (python-telegram-bot)
+- **Database:** PostgreSQL (Neon-backed Replit database)
+- **Frontend:** React-based admin panel
+
+### Core Components
+1. **api_server.py** - Flask API for admin panel (uses PostgreSQL)
+2. **bot/** - Telegram bot implementation
+   - admin.py - Admin commands and management
+   - users.py - User commands and key redemption
+3. **db_setup.py** - Database initialization and schema
+4. **db_helpers.py** - Database operations and admin notifications
+5. **admin-panel/** - React web interface
+
+### Database Schema
+- **platforms** - Supported platforms (Netflix, Crunchyroll, etc.)
+- **credentials** - Account credentials with claim tracking
+- **keys** - Redemption keys
+- **key_redemptions** - Redemption history with full user details
+- **users** - User registration and stats
+- **banned_users** - Banned user management
+- **giveaways** - Giveaway management
+- **giveaway_participants** - Giveaway entries
+- **admin_credentials** - Admin accounts with bcrypt passwords
 
 ## User Preferences
+- Clear, concise communication
+- Focus on functionality over documentation
+- Progressive implementation with testing
 
-Preferred communication style: Simple, everyday language.
+## Environment Variables
+- `BOT_TOKEN` - Telegram Bot API token
+- `DATABASE_URL` - PostgreSQL connection string (auto-configured)
+- Flask secret key configured in api_server.py
 
-## System Architecture
+## Development Workflow
+1. Database initialized via db_setup.py on first run
+2. Admin panel runs on port 5000
+3. Bot and API server run together via start.py
 
-### Bot Framework
-- **Technology**: Python Telegram Bot (PTB) library v20+
-- **Pattern**: Command and callback-based handlers for user interactions
-- **Rationale**: PTB provides a robust, well-documented framework for Telegram bot development with built-in support for async operations and inline keyboards
-
-### Authentication & Authorization
-- **Admin System**: Environment variable-based admin configuration (ADMIN_IDS)
-- **Auto-Admin Fallback**: First user to start the bot becomes admin if no ADMIN_IDS are configured
-- **User Verification**: Channel membership verification against a hardcoded list of required channels
-- **Ban System**: JSON-based banned users list for access control
-- **Rationale**: Simple role-based system without database overhead, suitable for small-to-medium scale deployment
-
-### Data Storage
-- **Approach**: File-based JSON storage
-- **Structure**:
-  - `data/keys.json`: Generated redemption keys with metadata (platform, uses, expiration)
-  - `data/users.json`: User registry with join dates and redemption history
-  - `data/banned.json`: List of banned user IDs
-  - `data/giveaway.json`: Active giveaway state and configuration
-  - `credentials/{platform}.json`: Platform-specific account credentials
-- **Rationale**: Lightweight solution avoiding database setup complexity; adequate for expected load
-- **Pros**: Simple, portable, version-controllable, no external dependencies
-- **Cons**: Not suitable for high-concurrency scenarios, lacks transactional safety
-
-### Key Generation System
-- **Format**: Platform-specific keys with random alphanumeric segments (e.g., NETFLIX-A2D8-FA2F-VV82)
-- **Attributes**: Platform, usage limit, expiration date, account text
-- **Credential Linking**: Keys are associated with credentials stored in platform-specific JSON files
-- **Rationale**: Human-readable format that's easy to copy and share while maintaining uniqueness
-
-### Module Architecture
-- **Separation of Concerns**: Split into three main modules
-  - `main.py`: Application entry point, routing, and initialization
-  - `admin.py`: Administrative functionality (key generation, stats, broadcasts, user management)
-  - `users.py`: User-facing features (channel verification, key redemption)
-- **Rationale**: Modular design improves maintainability and allows independent development of admin and user features
-
-### User Flow
-- **Channel Verification First**: Users must join all required channels before accessing bot features
-- **Interactive Callbacks**: Inline keyboard buttons for navigation and action confirmation
-- **State Management**: Context-based conversation flow for multi-step operations (key generation, giveaways)
-- **Rationale**: Ensures audience growth for associated channels while providing intuitive user experience
-
-### Admin Features Architecture
-- **Key Management**: Multi-step flow (platform selection → count → uses → account text → generation)
-- **Statistics Dashboard**: Real-time aggregation from JSON files
-- **Broadcast System**: Message distribution to all registered users
-- **Giveaway System**: Time-based automated key distribution with winner selection
-- **Revocation System**: Granular control over key lifecycle (individual, batch, or all keys)
-- **Rationale**: Comprehensive admin toolkit covering typical giveaway management needs
-
-## External Dependencies
-
-### Telegram Bot API
-- **Library**: `python-telegram-bot` (version 20+)
-- **Purpose**: Core bot functionality, message handling, inline keyboards
-- **Authentication**: Bot token from BotFather (configurable via BOT_TOKEN environment variable)
-- **Integration Points**: All user interactions, callback queries, message handlers
-
-### Python Standard Library
-- **json**: Data persistence and credential management
-- **os**: File system operations and environment variable access
-- **datetime/timedelta**: Key expiration and giveaway timing
-- **random/string**: Key generation randomization
-- **logging**: Application monitoring and debugging
-
-### Telegram Channels
-- **Required Channels**: @PremiumVaultFigs, @accountvaultportal, @PremiumVaultBackup, @PremiumVault
-- **Purpose**: User verification before bot access
-- **Integration**: Channel membership checks via Telegram API
-
-### Image Processing (Legacy)
-- **Libraries**: PIL (Pillow), ImageDraw, ImageFont
-- **Note**: Present in `main.py` from original template but not used in current giveaway bot implementation
-- **Status**: Vestigial code from original "stylish text" bot template
-
-### Environment Configuration
-- **BOT_TOKEN**: Telegram bot authentication token
-- **ADMIN_IDS**: Comma-separated list of Telegram user IDs with admin privileges
-- **Fallback**: Hardcoded bot token exists but environment variable usage recommended for security
-
-### Web Admin Panel
-- **Technology**: React (Vite), Flask backend
-- **Purpose**: Web-based interface for managing credentials and viewing keys
-- **Features**:
-  - Credentials management (add, edit, delete, bulk upload)
-  - Keys viewing and statistics
-  - Platform filtering (Netflix, Crunchyroll, Spotify, WWE)
-  - Session-based authentication
-- **UI/UX**:
-  - Modern gradient design with smooth animations
-  - Sidebar navigation with collapsible sections
-  - Animated transitions: fadeIn, slideIn, bounce, pulse, shimmer effects
-  - Responsive tables with hover states
-  - Modal dialogs for forms with backdrop blur
-  - Icon-based UI using react-icons (Material Design, Simple Icons, Game Icons)
-- **Recent Updates (Oct 2025)**:
-  - Fixed stats loading to handle unauthenticated states gracefully
-  - Added comprehensive CSS animations for improved user experience
-  - Enhanced buttons with gradient backgrounds and hover effects
-  - Implemented staggered table row animations
-  - Replaced all emojis with professional icon components
-  - Optimized for performance using transform/opacity animations
-  - **Oct 2**: Fixed bot account type response (reply_markup error)
-  - **Oct 2**: Enhanced credential generation to prioritize active credentials and show status
-  - **Oct 2**: Added platform logos to bot responses for keys and credentials
-  - **Oct 2**: Implemented admin management system (owner can add/remove admins)
-  - **Oct 2**: Added settings page for changing username and password
-  - **Oct 2**: Unified data storage - bot and web panel now share same credential files
-  - **Oct 2**: Fixed credential upload functionality in web admin panel
-  - **Oct 6**: Downloaded real platform logos from internet and organized in assets/platform-logos/
-  - **Oct 6**: Fixed admin panel React error by ensuring all platform icons are defined
-  - **Oct 6**: Updated bot to use new platform logo paths for better organization
-  - **Oct 6**: Initialized PostgreSQL database with tables (system uses hybrid JSON + DB approach)
+## Next Steps
+- Add UI components to view redemption/claim history in web admin panel
+- Add bot admin commands to view history
+- Comprehensive testing of complete system
