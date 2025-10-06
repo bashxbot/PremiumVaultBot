@@ -1001,22 +1001,30 @@ async def handle_admin_message(update: Update,
             'xbox': 'attached_assets/platforms/xbox.png'
         }
 
-        image_path = platform_images.get(platform.lower())
-        if image_path:
-            image_path = os.path.join(project_root, image_path)
         caption_text = (f"🔑 <b>Generated Keys for {platform.title()}</b>\n\n"
                         f"📊 Created {count} key(s):\n"
                         f"{keys_text}\n\n"
                         f"✅ Keys saved to database!\n"
                         f"💡 <i>Tap to copy!</i>")
 
-        if image_path and os.path.exists(image_path):
-            with open(image_path, 'rb') as photo:
-                await update.message.reply_photo(photo=photo,
-                                                 caption=caption_text,
-                                                 reply_markup=reply_markup,
-                                                 parse_mode='HTML')
-        else:
+        image_path = platform_images.get(platform.lower())
+        if image_path:
+            image_path = os.path.join(project_root, image_path)
+            
+        # Try to send with image, fall back to text if image doesn't exist
+        try:
+            if image_path and os.path.exists(image_path) and os.path.getsize(image_path) > 0:
+                with open(image_path, 'rb') as photo:
+                    await update.message.reply_photo(photo=photo,
+                                                     caption=caption_text,
+                                                     reply_markup=reply_markup,
+                                                     parse_mode='HTML')
+            else:
+                await update.message.reply_text(caption_text,
+                                                reply_markup=reply_markup,
+                                                parse_mode='HTML')
+        except Exception as e:
+            logger.error(f"Failed to send image, sending text instead: {e}")
             await update.message.reply_text(caption_text,
                                             reply_markup=reply_markup,
                                             parse_mode='HTML')
@@ -1189,21 +1197,29 @@ async def handle_admin_message(update: Update,
                 'xbox': 'attached_assets/platforms/xbox.png'
             }
 
-            image_path = platform_images.get(platform)
-            if image_path:
-                image_path = os.path.join(project_root, image_path)
             caption_text = (f"🎫 <b>{platform.title()} Credentials</b>\n\n"
                             f"📊 Retrieved {count} credential(s):\n"
                             f"{creds_text}{warning_text}\n\n"
                             f"💡 <i>Tap to copy!</i>")
 
-            if image_path and os.path.exists(image_path):
-                with open(image_path, 'rb') as photo:
-                    await update.message.reply_photo(photo=photo,
-                                                     caption=caption_text,
-                                                     reply_markup=reply_markup,
-                                                     parse_mode='HTML')
-            else:
+            image_path = platform_images.get(platform)
+            if image_path:
+                image_path = os.path.join(project_root, image_path)
+
+            # Try to send with image, fall back to text if image doesn't exist
+            try:
+                if image_path and os.path.exists(image_path) and os.path.getsize(image_path) > 0:
+                    with open(image_path, 'rb') as photo:
+                        await update.message.reply_photo(photo=photo,
+                                                         caption=caption_text,
+                                                         reply_markup=reply_markup,
+                                                         parse_mode='HTML')
+                else:
+                    await update.message.reply_text(caption_text,
+                                                    reply_markup=reply_markup,
+                                                    parse_mode='HTML')
+            except Exception as e:
+                logger.error(f"Failed to send image, sending text instead: {e}")
                 await update.message.reply_text(caption_text,
                                                 reply_markup=reply_markup,
                                                 parse_mode='HTML')
