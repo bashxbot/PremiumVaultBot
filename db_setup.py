@@ -65,10 +65,31 @@ def init_database():
                 password VARCHAR(255) NOT NULL,
                 status VARCHAR(20) DEFAULT 'active',
                 claimed_by VARCHAR(50),
+                claimed_by_username VARCHAR(255),
+                claimed_by_name VARCHAR(255),
                 claimed_at TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
+        """)
+        
+        # Add new columns if they don't exist (for existing databases)
+        cur.execute("""
+            DO $$ 
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name = 'credentials' AND column_name = 'claimed_by_username'
+                ) THEN
+                    ALTER TABLE credentials ADD COLUMN claimed_by_username VARCHAR(255);
+                END IF;
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name = 'credentials' AND column_name = 'claimed_by_name'
+                ) THEN
+                    ALTER TABLE credentials ADD COLUMN claimed_by_name VARCHAR(255);
+                END IF;
+            END $$;
         """)
         
         # Create keys table
@@ -95,8 +116,22 @@ def init_database():
                 key_id INTEGER REFERENCES keys(id) ON DELETE CASCADE,
                 user_id VARCHAR(50) NOT NULL,
                 username VARCHAR(255),
+                full_name VARCHAR(255),
                 redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
+        """)
+        
+        # Add full_name column if it doesn't exist (for existing databases)
+        cur.execute("""
+            DO $$ 
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name = 'key_redemptions' AND column_name = 'full_name'
+                ) THEN
+                    ALTER TABLE key_redemptions ADD COLUMN full_name VARCHAR(255);
+                END IF;
+            END $$;
         """)
         
         # Create users table
