@@ -1,4 +1,3 @@
-import json
 import os
 import random
 import string
@@ -6,6 +5,13 @@ import logging
 from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from db_helpers import (
+    get_platforms, get_platform_by_name, add_key, get_keys_by_platform,
+    get_or_create_user, get_user_stats, is_user_banned, ban_user,
+    get_db_connection
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,71 +29,30 @@ if _admin_ids_str:
     ]
     ADMIN_IDS.extend([id for id in additional_admins if id not in ADMIN_IDS])
 
-# Database files
-KEYS_FILE = 'data/keys.json'
-USERS_FILE = 'data/users.json'
-BANNED_FILE = 'data/banned.json'
-GIVEAWAY_FILE = 'data/giveaway.json'
-ADMIN_CREDS_FILE = '../admin_credentials.json'
-
 # Available platforms
 PLATFORMS = ['Netflix', 'Crunchyroll', 'WWE', 'ParamountPlus', 'Dazn', 'MolotovTV', 'DisneyPlus', 'PSNFA', 'Xbox']
 
 
 def ensure_data_files():
-    """Ensure all data files exist"""
-    os.makedirs('data', exist_ok=True)
-
-    if not os.path.exists(KEYS_FILE):
-        with open(KEYS_FILE, 'w') as f:
-            json.dump([], f)
-
-    if not os.path.exists(USERS_FILE):
-        with open(USERS_FILE, 'w') as f:
-            json.dump({}, f)
-
-    if not os.path.exists(BANNED_FILE):
-        with open(BANNED_FILE, 'w') as f:
-            json.dump([], f)
-
-    if not os.path.exists(GIVEAWAY_FILE):
-        with open(GIVEAWAY_FILE, 'w') as f:
-            json.dump({"active": False}, f)
-
-
-def load_json(filename):
-    """Load JSON file"""
-    try:
-        with open(filename, 'r') as f:
-            return json.load(f)
-    except:
-        return [] if filename != GIVEAWAY_FILE else {"active": False}
-
-
-def save_json(filename, data):
-    """Save JSON file"""
-    with open(filename, 'w') as f:
-        json.dump(data, f, indent=2)
+    """Compatibility function - no longer needed with PostgreSQL"""
+    pass
 
 
 def get_admin_telegram_ids():
-    """Get all admin Telegram IDs from admin_credentials.json"""
+    """Get all admin Telegram IDs from PostgreSQL"""
     try:
-        admin_creds = load_json(ADMIN_CREDS_FILE)
-        telegram_ids = []
-
-        # Get owner's telegram ID
-        owner_id = admin_creds.get('owner', {}).get('telegram_user_id', '')
-        if owner_id and str(owner_id).isdigit():
-            telegram_ids.append(int(owner_id))
-
-        # Get all admins' telegram IDs
-        for admin in admin_creds.get('admins', []):
-            admin_id = admin.get('telegram_user_id', '')
-            if admin_id and str(admin_id).isdigit():
-                telegram_ids.append(int(admin_id))
-
-        return telegram_ids
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT telegram_user_id FROM admin_credentials 
+                WHERE telegram_user_id IS NOT NULL AND telegram_user_id != ''
+            """)
+            telegram_ids = []
+            for row in cur.fetchall():
+                if row[0] and str(row[0]).isdigit():
+                    telegram_ids.append(int(row[0]))
+            cur.close()
+            return telegram_ids
     except:
         return []
 
@@ -380,50 +345,69 @@ async def show_bot_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    keys = load_json(KEYS_FILE)
-    users = load_json(USERS_FILE)
-
-    total_keys = len(keys)
-    active_keys = len([k for k in keys if k.get('status') == 'active'])
-    used_keys = len([k for k in keys if k.get('status') == 'used'])
-    expired_keys = len([k for k in keys if k.get('status') == 'expired'])
-
-    total_users = len(users)
-
-    stats_text = ("📊 <b>Bot Statistics</b>\n\n"
-                  f"👥 <b>Total Users:</b> {total_users}\n\n"
-                  f"🔑 <b>Total Keys:</b> {total_keys}\n"
-                  f"✅ <b>Active Keys:</b> {active_keys}\n"
-                  f"🎯 <b>Used Keys:</b> {used_keys}\n"
-                  f"⏰ <b>Expired Keys:</b> {expired_keys}\n\n")
-
-    # Platform breakdown
-    platform_stats = {}
-    for key in keys:
-        platform = key.get('platform', 'Unknown')
-        if platform not in platform_stats:
-            platform_stats[platform] = {'total': 0, 'active': 0, 'used': 0}
-        platform_stats[platform]['total'] += 1
-        if key.get('status') == 'active':
-            platform_stats[platform]['active'] += 1
-        elif key.get('status') == 'used':
-            platform_stats[platform]['used'] += 1
-
-    if platform_stats:
-        stats_text += "📱 <b>Platform Breakdown:</b>\n"
-        for platform, stats in platform_stats.items():
-            emoji = {
-                "Netflix": "🎬",
-                "Crunchyroll": "🍜",
-                "WWE": "🤼",
-                "ParamountPlus": "⭐",
-                "Dazn": "🥊",
-                "MolotovTV": "📺",
-                "DisneyPlus": "🏰",
-                "PSNFA": "🎮",
-                "Xbox": "🎯"
-            }.get(platform, "📦")
-            stats_text += f"{emoji} <b>{platform}:</b> {stats['total']} total, {stats['active']} active, {stats['used']} used\n"
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        
+        # Get key statistics
+        cur.execute("SELECT COUNT(*) FROM keys")
+        total_keys = cur.fetchone()[0]
+        
+        cur.execute("SELECT COUNT(*) FROM keys WHERE status = 'active'")
+        active_keys = cur.fetchone()[0]
+        
+        cur.execute("SELECT COUNT(*) FROM keys WHERE status = 'used'")
+        used_keys = cur.fetchone()[0]
+        
+        cur.execute("SELECT COUNT(*) FROM keys WHERE status = 'expired'")
+        expired_keys = cur.fetchone()[0]
+        
+        # Get total users
+        cur.execute("SELECT COUNT(*) FROM users")
+        total_users = cur.fetchone()[0]
+        
+        stats_text = ("📊 <b>Bot Statistics</b>\n\n"
+                      f"👥 <b>Total Users:</b> {total_users}\n\n"
+                      f"🔑 <b>Total Keys:</b> {total_keys}\n"
+                      f"✅ <b>Active Keys:</b> {active_keys}\n"
+                      f"🎯 <b>Used Keys:</b> {used_keys}\n"
+                      f"⏰ <b>Expired Keys:</b> {expired_keys}\n\n")
+        
+        # Platform breakdown
+        cur.execute("""
+            SELECT p.name, k.status, COUNT(*) 
+            FROM keys k 
+            JOIN platforms p ON k.platform_id = p.id 
+            GROUP BY p.name, k.status
+        """)
+        
+        platform_stats = {}
+        for row in cur.fetchall():
+            platform, status, count = row
+            if platform not in platform_stats:
+                platform_stats[platform] = {'total': 0, 'active': 0, 'used': 0}
+            platform_stats[platform]['total'] += count
+            if status == 'active':
+                platform_stats[platform]['active'] = count
+            elif status == 'used':
+                platform_stats[platform]['used'] = count
+        
+        if platform_stats:
+            stats_text += "📱 <b>Platform Breakdown:</b>\n"
+            for platform, stats in platform_stats.items():
+                emoji = {
+                    "Netflix": "🎬",
+                    "Crunchyroll": "🍜",
+                    "WWE": "🤼",
+                    "ParamountPlus": "⭐",
+                    "Dazn": "🥊",
+                    "MolotovTV": "📺",
+                    "DisneyPlus": "🏰",
+                    "PSNFA": "🎮",
+                    "Xbox": "🎯"
+                }.get(platform, "📦")
+                stats_text += f"{emoji} <b>{platform}:</b> {stats['total']} total, {stats['active']} active, {stats['used']} used\n"
+        
+        cur.close()
 
     keyboard = [[
         InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")
@@ -476,20 +460,16 @@ async def list_keys_by_platform(update: Update,
     query = update.callback_query
     await query.answer()
 
-    keys = load_json(KEYS_FILE)
-    platform_keys = [k for k in keys if k.get('platform') == platform]
+    platform_keys = get_keys_by_platform(platform)
 
     if not platform_keys:
         text = f"📋 <b>{platform} Keys</b>\n\nNo keys found for this platform."
     else:
         # Calculate statistics
         total_keys = len(platform_keys)
-        active_keys = len(
-            [k for k in platform_keys if k.get('status') == 'active'])
-        used_keys = len(
-            [k for k in platform_keys if k.get('status') == 'used'])
-        expired_keys = len(
-            [k for k in platform_keys if k.get('status') == 'expired'])
+        active_keys = len([k for k in platform_keys if k.get('status') == 'active'])
+        used_keys = len([k for k in platform_keys if k.get('status') == 'used'])
+        expired_keys = len([k for k in platform_keys if k.get('status') == 'expired'])
 
         # Count total unique users who redeemed
         all_users = set()
@@ -542,18 +522,25 @@ async def clear_expired_keys(update: Update,
     query = update.callback_query
     await query.answer()
 
-    keys = load_json(KEYS_FILE)
-    initial_count = len(keys)
-
-    # Remove expired keys
-    keys = [k for k in keys if k.get('status') != 'expired']
-    removed_count = initial_count - len(keys)
-
-    save_json(KEYS_FILE, keys)
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        
+        # Count expired keys
+        cur.execute("SELECT COUNT(*) FROM keys WHERE status = 'expired'")
+        removed_count = cur.fetchone()[0]
+        
+        # Delete expired keys
+        cur.execute("DELETE FROM keys WHERE status = 'expired'")
+        
+        # Count remaining keys
+        cur.execute("SELECT COUNT(*) FROM keys")
+        remaining_count = cur.fetchone()[0]
+        
+        cur.close()
 
     text = ("🗑️ <b>Clear Expired Keys</b>\n\n"
             f"✅ Successfully removed {removed_count} expired keys!\n\n"
-            f"📊 Remaining keys: {len(keys)}")
+            f"📊 Remaining keys: {remaining_count}")
 
     keyboard = [[
         InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")
@@ -658,34 +645,52 @@ async def stop_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    giveaway = load_json(GIVEAWAY_FILE)
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        
+        # Get active giveaway
+        cur.execute("""
+            SELECT g.id, p.name
+            FROM giveaways g
+            JOIN platforms p ON g.platform_id = p.id
+            WHERE g.active = true
+            LIMIT 1
+        """)
+        result = cur.fetchone()
+        
+        if not result:
+            text = "🛑 <b>Stop Giveaway</b>\n\n❌ No active giveaway found!"
+        else:
+            giveaway_id, platform = result
+            
+            # Get participants
+            cur.execute("""
+                SELECT user_id FROM giveaway_participants WHERE giveaway_id = %s
+            """, (giveaway_id,))
+            participants = [row[0] for row in cur.fetchall()]
+            
+            cancellation_text = (
+                "🚫 <b>Giveaway Cancelled</b>\n\n"
+                f"⚠️ The <b>{platform}</b> giveaway has been cancelled by the administrators.\n\n"
+                "😔 We apologize for the inconvenience.\n\n"
+                "💡 <b>Don't worry!</b> Stay tuned for more giveaways coming soon!\n\n"
+                "🔔 Keep checking back for new opportunities!")
 
-    if not giveaway.get('active'):
-        text = "🛑 <b>Stop Giveaway</b>\n\n❌ No active giveaway found!"
-    else:
-        # Notify all participants about cancellation
-        participants = giveaway.get('participants', [])
-        platform = giveaway.get('platform', 'Unknown')
+            # Send notification to each participant
+            for user_id in participants:
+                try:
+                    await context.bot.send_message(chat_id=int(user_id),
+                                                   text=cancellation_text,
+                                                   parse_mode='HTML')
+                except Exception as e:
+                    logger.error(f"Failed to notify user {user_id}: {e}")
 
-        cancellation_text = (
-            "🚫 <b>Giveaway Cancelled</b>\n\n"
-            f"⚠️ The <b>{platform}</b> giveaway has been cancelled by the administrators.\n\n"
-            "😔 We apologize for the inconvenience.\n\n"
-            "💡 <b>Don't worry!</b> Stay tuned for more giveaways coming soon!\n\n"
-            "🔔 Keep checking back for new opportunities!")
-
-        # Send notification to each participant
-        for user_id in participants:
-            try:
-                await context.bot.send_message(chat_id=int(user_id),
-                                               text=cancellation_text,
-                                               parse_mode='HTML')
-            except Exception as e:
-                logger.error(f"Failed to notify user {user_id}: {e}")
-
-        giveaway['active'] = False
-        save_json(GIVEAWAY_FILE, giveaway)
-        text = f"🛑 <b>Giveaway Stopped</b>\n\n✅ The giveaway has been stopped successfully!\n\n📨 Sent cancellation notifications to {len(participants)} participant(s)."
+            # Deactivate giveaway
+            cur.execute("UPDATE giveaways SET active = false WHERE id = %s", (giveaway_id,))
+            
+            text = f"🛑 <b>Giveaway Stopped</b>\n\n✅ The giveaway has been stopped successfully!\n\n📨 Sent cancellation notifications to {len(participants)} participant(s)."
+        
+        cur.close()
 
     keyboard = [[
         InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")
@@ -779,19 +784,31 @@ async def revoke_key_execute(update: Update,
     context.user_data['revoke_platform'] = platform
     context.user_data['revoke_option'] = option
 
-    keys = load_json(KEYS_FILE)
-    platform_keys = [k for k in keys if k.get('platform') == platform]
-
-    if option == "last":
-        count = 1
-        text = f"⚠️ <b>Confirm Revocation</b>\n\nAre you sure you want to revoke the last generated {platform} key?\n\n📊 This will revoke {count} key(s)."
-    elif option == "all":
-        count = len(platform_keys)
-        text = f"⚠️ <b>Confirm Revocation</b>\n\nAre you sure you want to revoke ALL {platform} keys?\n\n📊 This will revoke {count} key(s)."
-    elif option == "claimed":
-        claimed_keys = [k for k in platform_keys if k.get('status') == 'used']
-        count = len(claimed_keys)
-        text = f"⚠️ <b>Confirm Revocation</b>\n\nAre you sure you want to revoke all claimed ({platform}) keys?\n\n📊 This will revoke {count} key(s)."
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        
+        # Get platform ID
+        cur.execute("SELECT id FROM platforms WHERE name = %s", (platform,))
+        platform_result = cur.fetchone()
+        if not platform_result:
+            await query.edit_message_text("❌ Platform not found!", parse_mode='HTML')
+            return
+        
+        platform_id = platform_result[0]
+        
+        if option == "last":
+            count = 1
+            text = f"⚠️ <b>Confirm Revocation</b>\n\nAre you sure you want to revoke the last generated {platform} key?\n\n📊 This will revoke {count} key(s)."
+        elif option == "all":
+            cur.execute("SELECT COUNT(*) FROM keys WHERE platform_id = %s", (platform_id,))
+            count = cur.fetchone()[0]
+            text = f"⚠️ <b>Confirm Revocation</b>\n\nAre you sure you want to revoke ALL {platform} keys?\n\n📊 This will revoke {count} key(s)."
+        elif option == "claimed":
+            cur.execute("SELECT COUNT(*) FROM keys WHERE platform_id = %s AND status = 'used'", (platform_id,))
+            count = cur.fetchone()[0]
+            text = f"⚠️ <b>Confirm Revocation</b>\n\nAre you sure you want to revoke all claimed ({platform}) keys?\n\n📊 This will revoke {count} key(s)."
+        
+        cur.close()
 
     keyboard = [[
         InlineKeyboardButton("✅ Yes, Revoke",
@@ -816,29 +833,38 @@ async def execute_revoke(update: Update, context: ContextTypes.DEFAULT_TYPE):
     platform = context.user_data.get('revoke_platform')
     option = context.user_data.get('revoke_option')
 
-    keys = load_json(KEYS_FILE)
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        
+        # Get platform ID
+        cur.execute("SELECT id FROM platforms WHERE name = %s", (platform,))
+        platform_result = cur.fetchone()
+        if not platform_result:
+            await query.edit_message_text("❌ Platform not found!", parse_mode='HTML')
+            return
+        
+        platform_id = platform_result[0]
+        revoked_count = 0
 
-    revoked_count = 0
-
-    if option == "last":
-        platform_keys = [k for k in keys if k.get('platform') == platform]
-        if platform_keys:
-            last_key = platform_keys[-1]
-            keys.remove(last_key)
-            revoked_count = 1
-    elif option == "all":
-        initial_count = len(keys)
-        keys = [k for k in keys if k.get('platform') != platform]
-        revoked_count = initial_count - len(keys)
-    elif option == "claimed":
-        initial_keys_count = len(keys)
-        keys = [
-            k for k in keys if not (
-                k.get('platform') == platform and k.get('status') == 'used')
-        ]
-        revoked_count = initial_keys_count - len(keys)
-
-    save_json(KEYS_FILE, keys)
+        if option == "last":
+            # Delete last key for platform
+            cur.execute("""
+                DELETE FROM keys WHERE id = (
+                    SELECT id FROM keys WHERE platform_id = %s 
+                    ORDER BY created_at DESC LIMIT 1
+                )
+            """, (platform_id,))
+            revoked_count = cur.rowcount
+        elif option == "all":
+            # Delete all keys for platform
+            cur.execute("DELETE FROM keys WHERE platform_id = %s", (platform_id,))
+            revoked_count = cur.rowcount
+        elif option == "claimed":
+            # Delete all used keys for platform
+            cur.execute("DELETE FROM keys WHERE platform_id = %s AND status = 'used'", (platform_id,))
+            revoked_count = cur.rowcount
+        
+        cur.close()
 
     text = ("✅ <b>Keys Revoked</b>\n\n"
             f"Successfully revoked {revoked_count} {platform} key(s)!")
@@ -939,39 +965,12 @@ async def handle_admin_message(update: Update,
             context.user_data.pop('gen_step', None)
             return
 
-        # Load both main keys and platform-specific keys
-        keys_data = load_json(KEYS_FILE)
-
-        # Create keys folder if it doesn't exist (at project root)
-        project_root = get_project_root()
-        keys_dir = os.path.join(project_root, 'keys')
-        os.makedirs(keys_dir, exist_ok=True)
-        platform_keys_file = os.path.join(keys_dir, f'{platform.lower()}.json')
-        platform_keys_data = load_json(platform_keys_file) if os.path.exists(
-            platform_keys_file) else []
-
         generated_keys = []
 
         for _ in range(count):
             key_code = generate_key_code(platform)
-            key_data = {
-                "key": key_code,
-                "platform": platform,
-                "uses": uses,
-                "remaining_uses": uses,
-                "account_text": account_text,
-                "status": "active",
-                "created_at": datetime.now().isoformat(),
-                "redeemed_at": None,
-                "redeemed_by": [],
-                "used_by": []
-            }
-            keys_data.append(key_data)
-            platform_keys_data.append(key_data)
+            add_key(key_code, platform, uses, account_text)
             generated_keys.append(key_code)
-
-        save_json(KEYS_FILE, keys_data)
-        save_json(platform_keys_file, platform_keys_data)
 
         # Clear user data
         context.user_data.pop('gen_step', None)
@@ -1051,16 +1050,26 @@ async def handle_admin_message(update: Update,
             duration_minutes = duration_map.get(duration, 60)
             end_time = datetime.now() + timedelta(minutes=duration_minutes)
 
-            giveaway = {
-                "active": True,
-                "platform": platform,
-                "duration": duration,
-                "winners": winners,
-                "end_time": end_time.isoformat(),
-                "participants": []
-            }
-
-            save_json(GIVEAWAY_FILE, giveaway)
+            # Create giveaway in database
+            with get_db_connection() as conn:
+                cur = conn.cursor()
+                
+                # Deactivate any active giveaways
+                cur.execute("UPDATE giveaways SET active = false WHERE active = true")
+                
+                # Get platform ID
+                cur.execute("SELECT id FROM platforms WHERE name = %s", (platform,))
+                platform_result = cur.fetchone()
+                if platform_result:
+                    platform_id = platform_result[0]
+                    
+                    # Insert new giveaway
+                    cur.execute("""
+                        INSERT INTO giveaways (platform_id, active, duration, winners, end_time)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (platform_id, True, duration, winners, end_time))
+                
+                cur.close()
 
             context.user_data.pop('giveaway_step', None)
             context.user_data.pop('giveaway_duration', None)
@@ -1236,12 +1245,17 @@ async def handle_admin_message(update: Update,
     # Handle broadcast
     elif context.user_data.get('broadcast_step') == 'message':
         message = update.message.text
-        users = load_json(USERS_FILE)
+        
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT user_id FROM users")
+            user_ids = [row[0] for row in cur.fetchall()]
+            cur.close()
 
         success_count = 0
         fail_count = 0
 
-        for user_id_str in users.keys():
+        for user_id_str in user_ids:
             try:
                 await context.bot.send_message(
                     chat_id=int(user_id_str),
@@ -1270,14 +1284,12 @@ async def handle_admin_message(update: Update,
     elif context.user_data.get('ban_step') == 'user_id':
         user_input = update.message.text.strip()
 
-        banned = load_json(BANNED_FILE)
-
         # Try to extract user ID
         if user_input.startswith('@'):
             user_identifier = user_input
         else:
             try:
-                user_identifier = int(user_input)
+                user_identifier = str(int(user_input))
             except ValueError:
                 keyboard = [[
                     InlineKeyboardButton("🔙 Back to Main",
@@ -1295,10 +1307,8 @@ async def handle_admin_message(update: Update,
         ]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        if user_identifier not in banned:
-            banned.append(user_identifier)
-            save_json(BANNED_FILE, banned)
-
+        if not is_user_banned(user_identifier):
+            ban_user(user_identifier)
             context.user_data.pop('ban_step', None)
 
             await update.message.reply_text(
@@ -1315,154 +1325,123 @@ async def handle_admin_message(update: Update,
 async def check_and_process_giveaways(context: ContextTypes.DEFAULT_TYPE):
     """Background job to check for expired giveaways and select winners"""
     try:
-        giveaway = load_json(GIVEAWAY_FILE)
-
-        # Check if there's an active giveaway
-        if not giveaway.get('active'):
-            return
-
-        # Check if the giveaway has expired
-        end_time_str = giveaway.get('end_time')
-        if not end_time_str:
-            return
-
-        end_time = datetime.fromisoformat(end_time_str)
-
-        # If giveaway hasn't ended yet, return
-        if datetime.now() < end_time:
-            return
-
-        # Giveaway has ended! Process winners
-        logger.info("Giveaway has ended. Processing winners...")
-
-        participants = giveaway.get('participants', [])
-        num_winners = giveaway.get('winners', 1)
-        platform = giveaway.get('platform', 'Unknown')
-
-        # If no participants, just deactivate
-        if not participants:
-            giveaway['active'] = False
-            save_json(GIVEAWAY_FILE, giveaway)
-            logger.info("No participants in giveaway. Deactivating.")
-            return
-
-        # Select random winners (don't select more winners than participants)
-        actual_winners = min(num_winners, len(participants))
-        winner_ids = random.sample(participants, actual_winners)
-
-        logger.info(
-            f"Selected {actual_winners} winners from {len(participants)} participants"
-        )
-
-        # Load keys file for adding new generated keys
-        keys = load_json(KEYS_FILE)
-
-        # Platform images
-        platform_images = {
-            'Netflix': 'attached_assets/platforms/netflix.png',
-            'Crunchyroll': 'attached_assets/platforms/crunchyroll.png',
-            'WWE': 'attached_assets/platforms/wwe.png',
-            'ParamountPlus': 'attached_assets/platforms/paramountplus.png',
-            'Dazn': 'attached_assets/platforms/dazn.png',
-            'MolotovTV': 'attached_assets/platforms/molotov.png',
-            'DisneyPlus': 'attached_assets/platforms/disneyplus.png',
-            'PSNFA': 'attached_assets/platforms/psnfa.png',
-            'Xbox': 'attached_assets/platforms/xbox.png'
-        }
-
-        image_path = platform_images.get(platform)
-
-        # Generate and send keys to winners
-        keys_distributed = 0
-        for winner_id in winner_ids:
-            # Generate a new key for this winner
-            key_code = generate_key_code(platform)
-            account_text = f"{platform} Giveaway Prize"
-
-            # Create new key data
-            new_key = {
-                "key": key_code,
-                "platform": platform,
-                "uses": 1,
-                "remaining_uses": 1,
-                "account_text": account_text,
-                "status": "active",
-                "created_at": datetime.now().isoformat(),
-                "redeemed_at": None,
-                "redeemed_by": [],
-                "used_by": [],
-                "giveaway_generated": True,
-                "giveaway_winner": str(winner_id)
-            }
-
-            # Add to main keys file
-            keys.append(new_key)
-
-            # Save main keys file first
-            save_json(KEYS_FILE, keys)
-
-            # Also add to platform-specific keys file in keys/ directory (project root)
-            import os
-            project_root = os.path.dirname(
-                os.path.dirname(os.path.abspath(__file__)))
-            platform_keys_file = os.path.join(project_root, 'keys',
-                                              f'{platform.lower()}.json')
-
-            # Create keys directory if it doesn't exist
-            os.makedirs(os.path.dirname(platform_keys_file), exist_ok=True)
-
-            # Load existing platform keys or create new list
-            if os.path.exists(platform_keys_file):
-                platform_keys = load_json(platform_keys_file)
-            else:
-                platform_keys = []
-
-            platform_keys.append(new_key)
-            save_json(platform_keys_file, platform_keys)
-
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            
+            # Get active giveaway
+            cur.execute("""
+                SELECT g.id, g.end_time, g.winners, p.name
+                FROM giveaways g
+                JOIN platforms p ON g.platform_id = p.id
+                WHERE g.active = true
+                LIMIT 1
+            """)
+            result = cur.fetchone()
+            
+            if not result:
+                return
+            
+            giveaway_id, end_time_str, num_winners, platform = result
+            
+            # Check if the giveaway has expired
+            if not end_time_str:
+                return
+            
+            end_time = end_time_str if isinstance(end_time_str, datetime) else datetime.fromisoformat(str(end_time_str))
+            
+            # If giveaway hasn't ended yet, return
+            if datetime.now() < end_time:
+                return
+            
+            # Giveaway has ended! Process winners
+            logger.info("Giveaway has ended. Processing winners...")
+            
+            # Get participants
+            cur.execute("""
+                SELECT user_id FROM giveaway_participants WHERE giveaway_id = %s
+            """, (giveaway_id,))
+            participants = [row[0] for row in cur.fetchall()]
+            
+            # If no participants, just deactivate
+            if not participants:
+                cur.execute("UPDATE giveaways SET active = false WHERE id = %s", (giveaway_id,))
+                logger.info("No participants in giveaway. Deactivating.")
+                return
+            
+            # Select random winners (don't select more winners than participants)
+            actual_winners = min(num_winners, len(participants))
+            winner_ids = random.sample(participants, actual_winners)
+            
             logger.info(
-                f"Generated new key {key_code} for giveaway winner {winner_id}"
+                f"Selected {actual_winners} winners from {len(participants)} participants"
             )
 
+        # Platform images
+            platform_images = {
+                'Netflix': 'attached_assets/platforms/netflix.png',
+                'Crunchyroll': 'attached_assets/platforms/crunchyroll.png',
+                'WWE': 'attached_assets/platforms/wwe.png',
+                'ParamountPlus': 'attached_assets/platforms/paramountplus.png',
+                'Dazn': 'attached_assets/platforms/dazn.png',
+                'MolotovTV': 'attached_assets/platforms/molotov.png',
+                'DisneyPlus': 'attached_assets/platforms/disneyplus.png',
+                'PSNFA': 'attached_assets/platforms/psnfa.png',
+                'Xbox': 'attached_assets/platforms/xbox.png'
+            }
+
+            image_path = platform_images.get(platform)
+
+            # Generate and send keys to winners
+            keys_distributed = 0
+            for winner_id in winner_ids:
+                # Generate a new key for this winner
+                key_code = generate_key_code(platform)
+                account_text = f"{platform} Giveaway Prize"
+
+                # Add key to database
+                add_key(key_code, platform, 1, account_text, giveaway_generated=True, giveaway_winner=str(winner_id))
+
+                logger.info(
+                    f"Generated new key {key_code} for giveaway winner {winner_id}"
+                )
+
             # Create winner message
-            winner_text = (
-                f"🎉 <b>Congratulations! You Won!</b> 🎉\n\n"
-                f"🏆 You've been selected as a winner in the <b>{platform}</b> giveaway!\n\n"
-                f"🎁 <b>Your Prize:</b> {account_text}\n"
-                f"🔑 <b>Redemption Key:</b> <code>{key_code}</code>\n\n"
-                f"📝 <b>How to Redeem:</b>\n"
-                f"1️⃣ Use the /redeem command\n"
-                f"2️⃣ Send your key: <code>{key_code}</code>\n"
-                f"3️⃣ Get your account credentials!\n\n"
-                f"💡 <i>Tap the key to copy it!</i>\n\n"
-                f"💝 Thank you for participating in Premium Vault giveaways!")
+                winner_text = (
+                    f"🎉 <b>Congratulations! You Won!</b> 🎉\n\n"
+                    f"🏆 You've been selected as a winner in the <b>{platform}</b> giveaway!\n\n"
+                    f"🎁 <b>Your Prize:</b> {account_text}\n"
+                    f"🔑 <b>Redemption Key:</b> <code>{key_code}</code>\n\n"
+                    f"📝 <b>How to Redeem:</b>\n"
+                    f"1️⃣ Use the /redeem command\n"
+                    f"2️⃣ Send your key: <code>{key_code}</code>\n"
+                    f"3️⃣ Get your account credentials!\n\n"
+                    f"💡 <i>Tap the key to copy it!</i>\n\n"
+                    f"💝 Thank you for participating in Premium Vault giveaways!")
 
-            # Send with platform image if available
-            try:
-                if image_path and os.path.exists(image_path):
-                    with open(image_path, 'rb') as photo:
-                        await context.bot.send_photo(chat_id=int(winner_id),
-                                                     photo=photo,
-                                                     caption=winner_text,
-                                                     parse_mode='HTML')
-                else:
-                    await context.bot.send_message(chat_id=int(winner_id),
-                                                   text=winner_text,
-                                                   parse_mode='HTML')
-                keys_distributed += 1
-                logger.info(f"Sent key to winner {winner_id}")
-            except Exception as e:
-                logger.error(f"Failed to send key to winner {winner_id}: {e}")
+                # Send with platform image if available
+                try:
+                    if image_path and os.path.exists(image_path):
+                        with open(image_path, 'rb') as photo:
+                            await context.bot.send_photo(chat_id=int(winner_id),
+                                                         photo=photo,
+                                                         caption=winner_text,
+                                                         parse_mode='HTML')
+                    else:
+                        await context.bot.send_message(chat_id=int(winner_id),
+                                                       text=winner_text,
+                                                       parse_mode='HTML')
+                    keys_distributed += 1
+                    logger.info(f"Sent key to winner {winner_id}")
+                except Exception as e:
+                    logger.error(f"Failed to send key to winner {winner_id}: {e}")
 
-        # Deactivate the giveaway
-        giveaway['active'] = False
-        giveaway['winners_selected'] = winner_ids
-        giveaway['keys_distributed'] = keys_distributed
-        save_json(GIVEAWAY_FILE, giveaway)
+            # Deactivate the giveaway
+            cur.execute("UPDATE giveaways SET active = false WHERE id = %s", (giveaway_id,))
+            cur.close()
 
-        logger.info(
-            f"Giveaway processing complete. Distributed {keys_distributed} keys to {len(winner_ids)} winners."
-        )
+            logger.info(
+                f"Giveaway processing complete. Distributed {keys_distributed} keys to {len(winner_ids)} winners."
+            )
 
     except Exception as e:
         logger.error(f"Error in check_and_process_giveaways: {e}")

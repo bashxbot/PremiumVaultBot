@@ -469,10 +469,17 @@ def delete_all_keys(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
     
-    keys_data = load_json(KEYS_FILE) if os.path.exists(KEYS_FILE) else []
-    # Remove all keys for this platform
-    keys_data = [k for k in keys_data if k.get('platform', '').lower() != platform.lower()]
-    save_json(KEYS_FILE, keys_data)
+    from db_helpers import get_db_connection
+    
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM platforms WHERE name = %s", (platform,))
+        result = cur.fetchone()
+        if result:
+            platform_id = result[0]
+            cur.execute("DELETE FROM keys WHERE platform_id = %s", (platform_id,))
+        cur.close()
+    
     return jsonify({'success': True, 'message': f'All {platform} keys deleted successfully'})
 
 @app.route('/api/keys/<platform>', methods=['GET'])
@@ -481,40 +488,9 @@ def get_keys(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
     
-    # Load keys from both bot/data/keys.json and keys/{platform}.json
-    bot_keys_file = 'bot/data/keys.json'
-    bot_keys_data = load_json(bot_keys_file) if os.path.exists(bot_keys_file) else []
+    from db_helpers import get_keys_by_platform
     
-    # Load from project root keys file
-    keys_data = load_json(KEYS_FILE) if os.path.exists(KEYS_FILE) else []
-    
-    # Merge keys from both sources (avoid duplicates by key code)
-    all_keys = {}
-    for k in keys_data:
-        all_keys[k.get('key')] = k
-    for k in bot_keys_data:
-        if k.get('platform', '').lower() == platform.lower():
-            all_keys[k.get('key')] = k
-    
-    users_data = load_json(USERS_FILE) if os.path.exists(USERS_FILE) else {}
-    
-    if not isinstance(users_data, dict):
-        users_data = {}
-    
-    platform_keys = [k for k in all_keys.values() if k.get('platform', '').lower() == platform.lower()]
-    
-    for key in platform_keys:
-        key['users_info'] = []
-        if 'used_by' in key:
-            for user_id in key['used_by']:
-                user_id_str = str(user_id)
-                if user_id_str in users_data:
-                    user_info = users_data[user_id_str]
-                    if isinstance(user_info, dict):
-                        key['users_info'].append({
-                            'id': user_id,
-                            'joined': user_info.get('joined_at', 'N/A')
-                        })
+    platform_keys = get_keys_by_platform(platform)
     
     return jsonify({'success': True, 'keys': platform_keys})
 

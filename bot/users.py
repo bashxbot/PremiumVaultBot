@@ -1,9 +1,15 @@
-import json
 import os
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram.error import TelegramError
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from db_helpers import (
+    get_platforms, get_platform_by_name, get_key_by_code, redeem_key as db_redeem_key,
+    get_or_create_user, get_user_stats, is_user_banned as db_is_user_banned,
+    get_active_credential, claim_credential, get_db_connection
+)
 
 
 def get_project_root():
@@ -20,56 +26,15 @@ REQUIRED_CHANNELS = [
     "-1003039286362"   # PREMIUM VAULT FIGS - config
 ]
 
-# Database files
-KEYS_FILE = 'data/keys.json'
-USERS_FILE = 'data/users.json'
-BANNED_FILE = 'data/banned.json'
-GIVEAWAY_FILE = 'data/giveaway.json'
-
 
 def ensure_data_files():
-    """Ensure all data files exist"""
-    os.makedirs('data', exist_ok=True)
-
-    if not os.path.exists(KEYS_FILE):
-        with open(KEYS_FILE, 'w') as f:
-            json.dump([], f)
-
-    if not os.path.exists(USERS_FILE):
-        with open(USERS_FILE, 'w') as f:
-            json.dump({}, f)
-
-    if not os.path.exists(BANNED_FILE):
-        with open(BANNED_FILE, 'w') as f:
-            json.dump([], f)
-
-    if not os.path.exists(GIVEAWAY_FILE):
-        with open(GIVEAWAY_FILE, 'w') as f:
-            json.dump({"active": False}, f)
-
-
-def load_json(filename):
-    """Load JSON file"""
-    try:
-        with open(filename, 'r') as f:
-            return json.load(f)
-    except:
-        return [] if filename != GIVEAWAY_FILE and filename != USERS_FILE else (
-            {} if filename == USERS_FILE else {
-                "active": False
-            })
-
-
-def save_json(filename, data):
-    """Save JSON file"""
-    with open(filename, 'w') as f:
-        json.dump(data, f, indent=2)
+    """Compatibility function - no longer needed with PostgreSQL"""
+    pass
 
 
 def is_banned(user_id, username):
     """Check if user is banned"""
-    banned = load_json(BANNED_FILE)
-    return user_id in banned or f"@{username}" in banned if username else user_id in banned
+    return db_is_user_banned(str(user_id), username)
 
 
 async def check_channel_membership(update: Update,
@@ -98,8 +63,6 @@ async def user_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     username = user.username
 
-    ensure_data_files()
-
     # Check if user is banned
     if is_banned(user_id, username):
         await update.message.reply_text(
@@ -109,14 +72,7 @@ async def user_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Register user
-    users = load_json(USERS_FILE)
-    if str(user_id) not in users:
-        users[str(user_id)] = {
-            "username": username,
-            "joined_at": datetime.now().isoformat(),
-            "redeemed_keys": []
-        }
-        save_json(USERS_FILE, users)
+    get_or_create_user(str(user_id), username)
 
     # Import is_admin from admin module
     from admin import is_admin
@@ -178,8 +134,13 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
 
     # Check if there's an active giveaway
-    giveaway = load_json(GIVEAWAY_FILE)
-    if giveaway.get('active'):
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM giveaways WHERE active = true")
+        has_active_giveaway = cur.fetchone()[0] > 0
+        cur.close()
+    
+    if has_active_giveaway:
         keyboard.insert(1, [
             InlineKeyboardButton("🎁 Join Giveaway",
                                  callback_data="user_join_giveaway")
@@ -276,29 +237,31 @@ async def show_user_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     user_id = str(update.effective_user.id)
-    users = load_json(USERS_FILE)
+    user_data = get_user_stats(user_id)
 
-    user_data = users.get(user_id, {})
-    redeemed_keys = user_data.get('redeemed_keys', [])
-
-    stats_text = (
-        "📊 <b>Your Statistics</b>\n\n"
-        f"🎯 <b>Total Keys Redeemed:</b> {len(redeemed_keys)}\n"
-        f"📅 <b>Member Since:</b> {user_data.get('joined_at', 'Unknown')[:10]}\n\n"
-    )
-
-    if redeemed_keys:
-        stats_text += "🔑 <b>Redeemed Keys:</b>\n"
-        for key_info in redeemed_keys[-5:]:  # Show last 5 redeemed keys
-            platform = key_info.get('platform', 'Unknown')
-            redeemed_at = key_info.get('redeemed_at', 'Unknown')[:10]
-            stats_text += f"• {platform} - {redeemed_at}\n"
-
-        if len(redeemed_keys) > 5:
-            stats_text += f"\n... and {len(redeemed_keys) - 5} more"
+    if not user_data:
+        stats_text = "📊 <b>Your Statistics</b>\n\n❌ No data found!"
     else:
-        stats_text += "❌ <i>You haven't redeemed any keys yet!</i>\n\n"
-        stats_text += "💡 Use /redeem to redeem your first key!"
+        redeemed_keys = user_data.get('redeemed_keys', [])
+
+        stats_text = (
+            "📊 <b>Your Statistics</b>\n\n"
+            f"🎯 <b>Total Keys Redeemed:</b> {len(redeemed_keys)}\n"
+            f"📅 <b>Member Since:</b> {user_data.get('joined_at', 'Unknown')[:10]}\n\n"
+        )
+
+        if redeemed_keys:
+            stats_text += "🔑 <b>Redeemed Keys:</b>\n"
+            for key_info in redeemed_keys[-5:]:  # Show last 5 redeemed keys
+                platform = key_info.get('platform', 'Unknown')
+                redeemed_at = key_info.get('redeemed_at', 'Unknown')[:10]
+                stats_text += f"• {platform} - {redeemed_at}\n"
+
+            if len(redeemed_keys) > 5:
+                stats_text += f"\n... and {len(redeemed_keys) - 5} more"
+        else:
+            stats_text += "❌ <i>You haven't redeemed any keys yet!</i>\n\n"
+            stats_text += "💡 Use /redeem to redeem your first key!"
 
     keyboard = [[
         InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")
@@ -351,26 +314,47 @@ async def join_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     user_id = str(update.effective_user.id)
-    giveaway = load_json(GIVEAWAY_FILE)
-
-    if not giveaway.get('active'):
-        await query.edit_message_text(
-            text="❌ <b>No Active Giveaway</b>\n\n"
-            "There's no active giveaway right now.\n\n"
-            "Check back later!",
-            parse_mode='HTML')
-        return
-
-    participants = giveaway.get('participants', [])
-
-    if user_id in participants:
-        await query.answer("⚠️ You're already in this giveaway!",
-                           show_alert=True)
-        return
-
-    participants.append(user_id)
-    giveaway['participants'] = participants
-    save_json(GIVEAWAY_FILE, giveaway)
+    
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        
+        # Get active giveaway
+        cur.execute("""
+            SELECT g.id, g.winners, g.end_time
+            FROM giveaways g
+            WHERE g.active = true
+            LIMIT 1
+        """)
+        result = cur.fetchone()
+        
+        if not result:
+            await query.edit_message_text(
+                text="❌ <b>No Active Giveaway</b>\n\n"
+                "There's no active giveaway right now.\n\n"
+                "Check back later!",
+                parse_mode='HTML')
+            return
+        
+        giveaway_id, winners, end_time = result
+        
+        # Check if user already participated
+        cur.execute("""
+            SELECT COUNT(*) FROM giveaway_participants 
+            WHERE giveaway_id = %s AND user_id = %s
+        """, (giveaway_id, user_id))
+        
+        if cur.fetchone()[0] > 0:
+            await query.answer("⚠️ You're already in this giveaway!",
+                               show_alert=True)
+            return
+        
+        # Add participant
+        cur.execute("""
+            INSERT INTO giveaway_participants (giveaway_id, user_id)
+            VALUES (%s, %s)
+        """, (giveaway_id, user_id))
+        
+        cur.close()
 
     keyboard = [[
         InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")
@@ -380,8 +364,8 @@ async def join_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text(
         text=f"🎁 <b>Giveaway Entry Confirmed!</b>\n\n"
         f"✅ You've successfully joined the giveaway!\n\n"
-        f"🏆 <b>Winners:</b> {giveaway.get('winners', 1)}\n"
-        f"⏰ <b>Ends:</b> {giveaway.get('end_time', 'Soon')[:19]}\n\n"
+        f"🏆 <b>Winners:</b> {winners}\n"
+        f"⏰ <b>Ends:</b> {str(end_time)[:19]}\n\n"
         f"🍀 Good luck!",
         reply_markup=reply_markup,
         parse_mode='HTML')
@@ -431,15 +415,8 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     user_id = str(update.effective_user.id)
     key_code = key_code.strip().upper()
 
-    keys = load_json(KEYS_FILE)
-    users = load_json(USERS_FILE)
-
-    # Find the key
-    key_found = None
-    for key in keys:
-        if key['key'] == key_code:
-            key_found = key
-            break
+    # Find the key in database
+    key_found = get_key_by_code(key_code)
 
     keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -454,8 +431,7 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
         return
 
     # Check if key is already used
-    if key_found.get('status') == 'used' or key_found.get('remaining_uses',
-                                                          0) <= 0:
+    if key_found.get('status') == 'used' or key_found.get('remaining_uses', 0) <= 0:
         await update.message.reply_text(
             "❌ <b>Key Already Used</b>\n\n"
             "This key has already been redeemed.\n\n"
@@ -475,35 +451,31 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
         return
 
     # Check if user already used this key
-    if user_id in key_found.get('used_by', []):
-        await update.message.reply_text(
-            "⚠️ <b>Already Redeemed</b>\n\n"
-            "You've already redeemed this key!\n\n"
-            "Try a different key.",
-            reply_markup=reply_markup,
-            parse_mode='HTML')
-        return
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT COUNT(*) FROM key_redemptions 
+            WHERE key_id = %s AND user_id = %s
+        """, (key_found['id'], user_id))
+        if cur.fetchone()[0] > 0:
+            cur.close()
+            await update.message.reply_text(
+                "⚠️ <b>Already Redeemed</b>\n\n"
+                "You've already redeemed this key!\n\n"
+                "Try a different key.",
+                reply_markup=reply_markup,
+                parse_mode='HTML')
+            return
+        cur.close()
 
-    # Get credential from platform file (at project root)
-    platform = key_found.get('platform', '').lower()
-    project_root = get_project_root()
-    credential_file = os.path.join(project_root, 'credentials', f'{platform}.json')
-
-    if not os.path.exists(credential_file):
-        await update.message.reply_text(
-            "❌ <b>Error</b>\n\n"
-            "No credentials available for this platform.\n\n"
-            "Please contact support!",
-            parse_mode='HTML')
-        return
-
-    credentials = load_json(credential_file)
-    available_creds = [c for c in credentials if c.get('status') == 'active']
+    # Get credential from database
+    platform = key_found.get('platform', '')
+    credential = get_active_credential(platform)
 
     keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
     reply_markup_error = InlineKeyboardMarkup(keyboard)
 
-    if not available_creds:
+    if not credential:
         await update.message.reply_text(
             "❌ <b>No Accounts Available</b>\n\n"
             "All accounts for this platform are currently used.\n\n"
@@ -512,64 +484,9 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
             parse_mode='HTML')
         return
 
-    # Give credential to user - mark as claimed immediately
-    credential = available_creds[0]
-    credential['status'] = 'claimed'
-    credential['claimed_by'] = user_id
-    credential['claimed_at'] = datetime.now().isoformat()
-
-    # Save immediately to prevent double allocation
-    save_json(credential_file, credentials)
-
-    # Update key
-    key_found['remaining_uses'] = key_found.get('remaining_uses', 1) - 1
-    key_found['used_by'].append(user_id)
-    key_found['redeemed_at'] = datetime.now().isoformat()
-
-    # Add to redeemed_by list for detailed tracking
-    if 'redeemed_by' not in key_found:
-        key_found['redeemed_by'] = []
-
-    key_found['redeemed_by'].append({
-        'user_id': user_id,
-        'username': update.effective_user.username,
-        'redeemed_at': datetime.now().isoformat()
-    })
-
-    if key_found['remaining_uses'] <= 0:
-        key_found['status'] = 'used'
-
-    save_json(KEYS_FILE, keys)
-
-    # Also update platform-specific keys file (at project root)
-    platform = key_found.get('platform', '').lower()
-    project_root = get_project_root()
-    platform_keys_file = os.path.join(project_root, 'keys', f'{platform}.json')
-    if os.path.exists(platform_keys_file):
-        platform_keys = load_json(platform_keys_file)
-        for pk in platform_keys:
-            if pk['key'] == key_code:
-                pk['remaining_uses'] = key_found['remaining_uses']
-                pk['used_by'] = key_found['used_by']
-                pk['redeemed_at'] = key_found['redeemed_at']
-                pk['redeemed_by'] = key_found['redeemed_by']
-                pk['status'] = key_found['status']
-                break
-        save_json(platform_keys_file, platform_keys)
-
-    # Update user data
-    if user_id not in users:
-        users[user_id] = {"redeemed_keys": []}
-
-    users[user_id].setdefault('redeemed_keys', []).append({
-        "key":
-        key_code,
-        "platform":
-        key_found.get('platform'),
-        "redeemed_at":
-        datetime.now().isoformat()
-    })
-    save_json(USERS_FILE, users)
+    # Claim credential and redeem key atomically
+    claim_credential(credential['id'], user_id)
+    db_redeem_key(key_found['id'], user_id, update.effective_user.username)
 
     # Send credential to user
     platform_name = key_found.get('platform', 'Unknown')
@@ -655,8 +572,6 @@ async def participate_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     user = update.effective_user
     username = user.username
 
-    ensure_data_files()
-
     # Check if user is banned
     if is_banned(int(user_id), username):
         keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
@@ -686,40 +601,60 @@ async def participate_command(update: Update, context: ContextTypes.DEFAULT_TYPE
                 parse_mode='HTML')
             return
 
-    giveaway = load_json(GIVEAWAY_FILE)
-
     keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    if not giveaway.get('active'):
-        await update.message.reply_text(
-            "❌ <b>No Active Giveaway</b>\n\n"
-            "There's no active giveaway right now.\n\n"
-            "Check back later!",
-            reply_markup=reply_markup,
-            parse_mode='HTML')
-        return
-
-    participants = giveaway.get('participants', [])
-
-    if user_id in participants:
-        await update.message.reply_text(
-            "⚠️ <b>Already Participating</b>\n\n"
-            "You're already in this giveaway!\n\n"
-            "Good luck! 🍀",
-            reply_markup=reply_markup,
-            parse_mode='HTML')
-        return
-
-    participants.append(user_id)
-    giveaway['participants'] = participants
-    save_json(GIVEAWAY_FILE, giveaway)
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        
+        # Get active giveaway
+        cur.execute("""
+            SELECT g.id, g.winners, g.end_time
+            FROM giveaways g
+            WHERE g.active = true
+            LIMIT 1
+        """)
+        result = cur.fetchone()
+        
+        if not result:
+            await update.message.reply_text(
+                "❌ <b>No Active Giveaway</b>\n\n"
+                "There's no active giveaway right now.\n\n"
+                "Check back later!",
+                reply_markup=reply_markup,
+                parse_mode='HTML')
+            return
+        
+        giveaway_id, winners, end_time = result
+        
+        # Check if user already participated
+        cur.execute("""
+            SELECT COUNT(*) FROM giveaway_participants 
+            WHERE giveaway_id = %s AND user_id = %s
+        """, (giveaway_id, user_id))
+        
+        if cur.fetchone()[0] > 0:
+            await update.message.reply_text(
+                "⚠️ <b>Already Participating</b>\n\n"
+                "You're already in this giveaway!\n\n"
+                "Good luck! 🍀",
+                reply_markup=reply_markup,
+                parse_mode='HTML')
+            return
+        
+        # Add participant
+        cur.execute("""
+            INSERT INTO giveaway_participants (giveaway_id, user_id)
+            VALUES (%s, %s)
+        """, (giveaway_id, user_id))
+        
+        cur.close()
 
     await update.message.reply_text(
         f"🎁 <b>Giveaway Entry Confirmed!</b>\n\n"
         f"✅ You've successfully joined the giveaway!\n\n"
-        f"🏆 <b>Winners:</b> {giveaway.get('winners', 1)}\n"
-        f"⏰ <b>Ends:</b> {giveaway.get('end_time', 'Soon')[:19]}\n\n"
+        f"🏆 <b>Winners:</b> {winners}\n"
+        f"⏰ <b>Ends:</b> {str(end_time)[:19]}\n\n"
         f"🍀 Good luck!",
         reply_markup=reply_markup,
         parse_mode='HTML')
