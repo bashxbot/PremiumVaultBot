@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { MdBarChart, MdDelete } from 'react-icons/md'
-import { SiNetflix, SiCrunchyroll, SiSpotify } from 'react-icons/si'
+import { SiNetflix, SiCrunchyroll } from 'react-icons/si'
 import { GiBoxingGlove } from 'react-icons/gi'
+import { FaStar, FaTv, FaGamepad, FaXbox } from 'react-icons/fa'
+import { MdSportsKabaddi } from 'react-icons/md'
 import './Keys.css'
 
 function Keys({ platform }) {
@@ -26,8 +28,13 @@ function Keys({ platform }) {
   const platformIcons = {
     netflix: SiNetflix,
     crunchyroll: SiCrunchyroll,
-    spotify: SiSpotify,
-    wwe: GiBoxingGlove
+    wwe: GiBoxingGlove,
+    paramountplus: FaStar,
+    dazn: MdSportsKabaddi,
+    molotovtv: FaTv,
+    disneyplus: FaStar,
+    psnfa: FaGamepad,
+    xbox: FaXbox
   }
 
   const PlatformIcon = platformIcons[platform]

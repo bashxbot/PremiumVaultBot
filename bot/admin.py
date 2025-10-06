@@ -925,12 +925,19 @@ async def handle_admin_message(update: Update,
                                             parse_mode='HTML')
 
     elif context.user_data.get('gen_step') == 'account_text':
-        account_text = update.message.text
+        account_text = update.message.text.strip()
 
         # Generate keys
         platform = context.user_data.get('gen_platform')
         count = context.user_data.get('gen_count')
         uses = context.user_data.get('gen_uses')
+
+        if not platform or not count or not uses:
+            keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text("❌ Error: Missing data. Please start over.", reply_markup=reply_markup, parse_mode='HTML')
+            context.user_data.pop('gen_step', None)
+            return
 
         # Load both main keys and platform-specific keys
         keys_data = load_json(KEYS_FILE)
@@ -981,19 +988,22 @@ async def handle_admin_message(update: Update,
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         # Send platform image with keys
+        project_root = get_project_root()
         platform_images = {
             'netflix': 'attached_assets/platforms/netflix.png',
             'crunchyroll': 'attached_assets/platforms/crunchyroll.png',
             'wwe': 'attached_assets/platforms/wwe.png',
             'paramountplus': 'attached_assets/platforms/paramountplus.png',
             'dazn': 'attached_assets/platforms/dazn.png',
-            'molotv': 'attached_assets/platforms/molotov.png',
+            'molotovtv': 'attached_assets/platforms/molotovtv.png',
             'disneyplus': 'attached_assets/platforms/disneyplus.png',
             'psnfa': 'attached_assets/platforms/psnfa.png',
             'xbox': 'attached_assets/platforms/xbox.png'
         }
 
         image_path = platform_images.get(platform.lower())
+        if image_path:
+            image_path = os.path.join(project_root, image_path)
         caption_text = (f"🔑 <b>Generated Keys for {platform.title()}</b>\n\n"
                         f"📊 Created {count} key(s):\n"
                         f"{keys_text}\n\n"
@@ -1166,19 +1176,22 @@ async def handle_admin_message(update: Update,
             reply_markup = InlineKeyboardMarkup(keyboard)
 
             # Send platform image with credentials
+            project_root = get_project_root()
             platform_images = {
                 'netflix': 'attached_assets/platforms/netflix.png',
                 'crunchyroll': 'attached_assets/platforms/crunchyroll.png',
                 'wwe': 'attached_assets/platforms/wwe.png',
                 'paramountplus': 'attached_assets/platforms/paramountplus.png',
                 'dazn': 'attached_assets/platforms/dazn.png',
-                'molotv': 'attached_assets/platforms/molotov.png',
+                'molotovtv': 'attached_assets/platforms/molotovtv.png',
                 'disneyplus': 'attached_assets/platforms/disneyplus.png',
                 'psnfa': 'attached_assets/platforms/psnfa.png',
                 'xbox': 'attached_assets/platforms/xbox.png'
             }
 
             image_path = platform_images.get(platform)
+            if image_path:
+                image_path = os.path.join(project_root, image_path)
             caption_text = (f"🎫 <b>{platform.title()} Credentials</b>\n\n"
                             f"📊 Retrieved {count} credential(s):\n"
                             f"{creds_text}{warning_text}\n\n"

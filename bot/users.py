@@ -595,6 +595,7 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     # Get platform logo
+    project_root = get_project_root()
     platform_images = {
         'Netflix': 'attached_assets/platforms/netflix.png',
         'Crunchyroll': 'attached_assets/platforms/crunchyroll.png',
@@ -607,6 +608,8 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
         'Xbox': 'attached_assets/platforms/xbox.png'
     }
     logo_path = platform_images.get(platform_name)
+    if logo_path:
+        logo_path = os.path.join(project_root, logo_path)
     
     # Send with logo if available, otherwise send as text
     if logo_path and os.path.exists(logo_path):
