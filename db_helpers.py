@@ -2,6 +2,7 @@
 from db_setup import get_db_connection
 from datetime import datetime
 import json
+import asyncio
 
 def get_platforms():
     """Get all platforms"""
@@ -122,15 +123,19 @@ def get_active_credential(platform_name):
             return {'id': cred[0], 'email': cred[1], 'password': cred[2]}
         return None
 
-def claim_credential(cred_id, user_id):
-    """Mark a credential as claimed"""
+def claim_credential(cred_id, user_id, username=None, full_name=None):
+    """Mark a credential as claimed with full user details"""
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute("""
             UPDATE credentials 
-            SET status = 'claimed', claimed_by = %s, claimed_at = CURRENT_TIMESTAMP
+            SET status = 'claimed', 
+                claimed_by = %s, 
+                claimed_by_username = %s,
+                claimed_by_name = %s,
+                claimed_at = CURRENT_TIMESTAMP
             WHERE id = %s
-        """, (user_id, cred_id))
+        """, (user_id, username, full_name, cred_id))
         cur.close()
         return True
 
@@ -238,8 +243,8 @@ def get_keys_by_platform(platform_name):
         
         return result
 
-def redeem_key(key_id, user_id, username=None):
-    """Redeem a key"""
+def redeem_key(key_id, user_id, username=None, full_name=None):
+    """Redeem a key with full user details"""
     with get_db_connection() as conn:
         cur = conn.cursor()
         
@@ -252,11 +257,11 @@ def redeem_key(key_id, user_id, username=None):
             WHERE id = %s
         """, (key_id,))
         
-        # Add redemption record
+        # Add redemption record with full user details
         cur.execute("""
-            INSERT INTO key_redemptions (key_id, user_id, username)
-            VALUES (%s, %s, %s)
-        """, (key_id, user_id, username))
+            INSERT INTO key_redemptions (key_id, user_id, username, full_name)
+            VALUES (%s, %s, %s, %s)
+        """, (key_id, user_id, username, full_name))
         
         cur.close()
         return True
@@ -340,3 +345,83 @@ def get_user_stats(user_id):
                 'redeemed_at': r[2].isoformat() if r[2] else None
             } for r in redemptions]
         }
+
+def get_all_admin_telegram_ids():
+    """Get all admin Telegram IDs from database"""
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT telegram_user_id 
+            FROM admin_credentials 
+            WHERE telegram_user_id IS NOT NULL AND telegram_user_id != ''
+        """)
+        results = cur.fetchall()
+        cur.close()
+        
+        telegram_ids = []
+        for row in results:
+            if row[0] and str(row[0]).isdigit():
+                telegram_ids.append(int(row[0]))
+        return telegram_ids
+
+async def notify_admins_key_redeemed(bot, platform, user_id, username, full_name, key_code):
+    """Send notification to all admins when a key is redeemed"""
+    admin_ids = get_all_admin_telegram_ids()
+    
+    if not admin_ids:
+        return
+    
+    username_text = f"@{username}" if username else "N/A"
+    full_name_text = full_name if full_name else "N/A"
+    
+    message = (
+        f"🎁 <b>Key Redeemed!</b>\n\n"
+        f"🎮 <b>Platform:</b> {platform}\n"
+        f"🔑 <b>Key:</b> <code>{key_code}</code>\n\n"
+        f"👤 <b>User Details:</b>\n"
+        f"├ <b>Name:</b> {full_name_text}\n"
+        f"├ <b>Chat ID:</b> <code>{user_id}</code>\n"
+        f"└ <b>Username:</b> {username_text}\n\n"
+        f"⏰ <b>Time:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    )
+    
+    for admin_id in admin_ids:
+        try:
+            await bot.send_message(
+                chat_id=admin_id,
+                text=message,
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            print(f"Failed to notify admin {admin_id}: {e}")
+
+async def notify_admins_credential_claimed(bot, platform, user_id, username, full_name, email):
+    """Send notification to all admins when a credential is claimed"""
+    admin_ids = get_all_admin_telegram_ids()
+    
+    if not admin_ids:
+        return
+    
+    username_text = f"@{username}" if username else "N/A"
+    full_name_text = full_name if full_name else "N/A"
+    
+    message = (
+        f"📧 <b>Credential Claimed!</b>\n\n"
+        f"🎮 <b>Platform:</b> {platform}\n"
+        f"📧 <b>Email:</b> <code>{email}</code>\n\n"
+        f"👤 <b>User Details:</b>\n"
+        f"├ <b>Name:</b> {full_name_text}\n"
+        f"├ <b>Chat ID:</b> <code>{user_id}</code>\n"
+        f"└ <b>Username:</b> {username_text}\n\n"
+        f"⏰ <b>Time:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    )
+    
+    for admin_id in admin_ids:
+        try:
+            await bot.send_message(
+                chat_id=admin_id,
+                text=message,
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            print(f"Failed to notify admin {admin_id}: {e}")

@@ -8,7 +8,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db_helpers import (
     get_platforms, get_platform_by_name, get_key_by_code, redeem_key as db_redeem_key,
     get_or_create_user, get_user_stats, is_user_banned as db_is_user_banned,
-    get_active_credential, claim_credential, get_db_connection
+    get_active_credential, claim_credential, get_db_connection,
+    notify_admins_key_redeemed, notify_admins_credential_claimed
 )
 
 
@@ -484,9 +485,34 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
             parse_mode='HTML')
         return
 
+    # Get full user details
+    full_name = update.effective_user.full_name
+    username_str = update.effective_user.username
+    
     # Claim credential and redeem key atomically
-    claim_credential(credential['id'], user_id)
-    db_redeem_key(key_found['id'], user_id, update.effective_user.username)
+    claim_credential(credential['id'], str(user_id), username_str, full_name)
+    db_redeem_key(key_found['id'], str(user_id), username_str, full_name)
+    
+    # Send notifications to all admins
+    try:
+        await notify_admins_key_redeemed(
+            context.bot,
+            platform_name,
+            user_id,
+            username_str,
+            full_name,
+            key_code.upper()
+        )
+        await notify_admins_credential_claimed(
+            context.bot,
+            platform_name,
+            user_id,
+            username_str,
+            full_name,
+            credential['email']
+        )
+    except Exception as e:
+        print(f"Failed to send admin notifications: {e}")
 
     # Send credential to user
     platform_name = key_found.get('platform', 'Unknown')
