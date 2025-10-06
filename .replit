@@ -14,7 +14,7 @@ run = ["sh", "-c", "python start.py"]
 expertMode = true
 
 [workflows]
-runButton = "Unified Service"
+runButton = "Project"
 
 [[workflows.workflow]]
 name = "Project"
@@ -23,34 +23,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Bot"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Admin Panel"
-
-[[workflows.workflow]]
-name = "Bot"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd bot && python main.py"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
-[[workflows.workflow]]
-name = "Admin Panel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python api_server.py"
-waitForPort = 5000
-
-[workflows.workflow.metadata]
-outputType = "webview"
+args = "Server"
 
 [[workflows.workflow]]
 name = "Web Admin Panel"
@@ -70,10 +43,18 @@ mode = "sequential"
 task = "shell.exec"
 args = "python start.py"
 
+[[workflows.workflow]]
+name = "Server"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python start.py"
+waitForPort = 5000
+
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 41659
-externalPort = 3000
