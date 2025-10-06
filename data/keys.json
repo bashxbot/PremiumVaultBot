@@ -56,5 +56,17 @@
     ],
     "giveaway_generated": true,
     "giveaway_winner": "6562270244"
+  },
+  {
+    "key": "DISNEYPLUS-4SGM-251X-AK1O",
+    "platform": "DisneyPlus",
+    "uses": 1,
+    "remaining_uses": 1,
+    "account_text": "premium acc",
+    "status": "active",
+    "created_at": "2025-10-06T13:12:37.362379",
+    "redeemed_at": null,
+    "redeemed_by": [],
+    "used_by": []
   }
 ]
