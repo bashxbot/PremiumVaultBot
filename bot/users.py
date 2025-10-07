@@ -5,18 +5,19 @@ from telegram.ext import ContextTypes
 from telegram.error import TelegramError
 import sys
 import logging
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from db_helpers import (
-    get_platforms, get_platform_by_name, get_key_by_code, redeem_key as db_redeem_key,
-    get_or_create_user, get_user_stats, is_user_banned as db_is_user_banned,
-    get_active_credential, claim_credential, get_db_connection,
-    notify_admins_key_redeemed, notify_admins_credential_claimed
-)
+from db_helpers import (get_platforms, get_platform_by_name, get_key_by_code,
+                        redeem_key as db_redeem_key, get_or_create_user,
+                        get_user_stats, is_user_banned as db_is_user_banned,
+                        get_active_credential, claim_credential,
+                        get_db_connection, notify_admins_key_redeemed,
+                        notify_admins_credential_claimed)
 
 # ==================== CONFIGURATION ====================
 # Set to True to enable 10-minute cooldown between key redemptions
 # Set to False to disable cooldown (useful for testing)
-REDEMPTION_COOLDOWN_ENABLED = True
+REDEMPTION_COOLDOWN_ENABLED = False
 # =======================================================
 
 # Setup logging
@@ -34,7 +35,7 @@ REQUIRED_CHANNELS = [
     "-1002937378958",  # ACCOUNT VAULT NETWORK - portal
     "-1002758495265",  # PREMIUMS VAULT - main
     "-1003084077701",  # PREMIUM VAULT BACKUP - backup
-    "-1003039286362"   # PREMIUM VAULT FIGS - config
+    "-1003039286362"  # PREMIUM VAULT FIGS - config
 ]
 
 
@@ -98,11 +99,26 @@ async def user_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not has_joined:
         channel_buttons = [
-            [InlineKeyboardButton("🔗 Join Channel Portal", url="https://t.me/accountvaultportal")],
-            [InlineKeyboardButton("🔗 Join Channel Main", url="https://t.me/+RKjw0ypr_e9lZTI0")],
-            [InlineKeyboardButton("🔗 Join Channel Backup", url="https://t.me/+yiYViAOknS9lZjlk")],
-            [InlineKeyboardButton("🔗 Join Channel Config", url="https://t.me/+gxVbPeU842ZkNmU0")],
-            [InlineKeyboardButton("✅ I have joined all, continue", callback_data="user_verify_channels")]
+            [
+                InlineKeyboardButton("🔗 Join Channel Portal",
+                                     url="https://t.me/accountvaultportal")
+            ],
+            [
+                InlineKeyboardButton("🔗 Join Channel Main",
+                                     url="https://t.me/+RKjw0ypr_e9lZTI0")
+            ],
+            [
+                InlineKeyboardButton("🔗 Join Channel Backup",
+                                     url="https://t.me/+yiYViAOknS9lZjlk")
+            ],
+            [
+                InlineKeyboardButton("🔗 Join Channel Config",
+                                     url="https://t.me/+gxVbPeU842ZkNmU0")
+            ],
+            [
+                InlineKeyboardButton("✅ I have joined all, continue",
+                                     callback_data="user_verify_channels")
+            ]
         ]
 
         reply_markup = InlineKeyboardMarkup(channel_buttons)
@@ -139,8 +155,7 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                  url="https://t.me/+yiYViAOknS9lZjlk"),
             InlineKeyboardButton("📢 Channel Config",
                                  url="https://t.me/+gxVbPeU842ZkNmU0")
-        ], 
-        [InlineKeyboardButton("❓ Help", callback_data="user_help")],
+        ], [InlineKeyboardButton("❓ Help", callback_data="user_help")],
         [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/BEASTSEC")]
     ]
 
@@ -204,7 +219,9 @@ async def handle_user_callback(update: Update,
         await query.answer()
         context.user_data['redeem_step'] = 'key'
 
-        keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
+        keyboard = [[
+            InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")
+        ]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await query.edit_message_text(
@@ -349,7 +366,8 @@ async def join_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
         giveaway_id, winners, end_time = result
 
         # Check if user already participated
-        cur.execute("""
+        cur.execute(
+            """
             SELECT COUNT(*) FROM giveaway_participants 
             WHERE giveaway_id = %s AND user_id = %s
         """, (giveaway_id, user_id))
@@ -360,7 +378,8 @@ async def join_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         # Add participant
-        cur.execute("""
+        cur.execute(
+            """
             INSERT INTO giveaway_participants (giveaway_id, user_id)
             VALUES (%s, %s)
         """, (giveaway_id, user_id))
@@ -429,33 +448,37 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     username_str = user.username if user.username else "N/A"
     full_name = user.full_name if user.full_name else "N/A"
 
-    keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
+    keyboard = [[
+        InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")
+    ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     # Check 10-minute cooldown (only if enabled)
     if REDEMPTION_COOLDOWN_ENABLED:
         with get_db_connection() as conn:
             cur = conn.cursor()
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT redeemed_at FROM key_redemptions 
                 WHERE user_id = %s 
                 ORDER BY redeemed_at DESC 
                 LIMIT 1
-            """, (user_id,))
+            """, (user_id, ))
             last_redemption = cur.fetchone()
             cur.close()
-            
+
             if last_redemption:
                 from datetime import datetime, timedelta
                 last_time = last_redemption[0]
                 time_diff = datetime.now() - last_time
                 cooldown_seconds = 10 * 60  # 10 minutes
-                
+
                 if time_diff.total_seconds() < cooldown_seconds:
-                    remaining_seconds = int(cooldown_seconds - time_diff.total_seconds())
+                    remaining_seconds = int(cooldown_seconds -
+                                            time_diff.total_seconds())
                     remaining_minutes = remaining_seconds // 60
                     remaining_secs = remaining_seconds % 60
-                    
+
                     await update.message.reply_text(
                         f"⏳ <b>Cooldown Active</b>\n\n"
                         f"⚠️ You must wait <b>{remaining_minutes} minutes and {remaining_secs} seconds</b> before redeeming another key.\n\n"
@@ -478,7 +501,8 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
         return
 
     # Check if key is already used
-    if key_found.get('status') == 'used' or key_found.get('remaining_uses', 0) <= 0:
+    if key_found.get('status') == 'used' or key_found.get('remaining_uses',
+                                                          0) <= 0:
         await update.message.reply_text(
             "❌ <b>Key Already Used</b>\n\n"
             "This key has already been redeemed.\n\n"
@@ -500,7 +524,8 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     # Check if user already used this key
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("""
+        cur.execute(
+            """
             SELECT COUNT(*) FROM key_redemptions 
             WHERE key_code = %s AND user_id = %s
         """, (key_code, user_id))
@@ -519,7 +544,9 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     platform = key_found.get('platform', '')
     credential = get_active_credential(platform)
 
-    keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
+    keyboard = [[
+        InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")
+    ]]
     reply_markup_error = InlineKeyboardMarkup(keyboard)
 
     if not credential:
@@ -571,50 +598,41 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     image_path = platform_images.get(platform_name)
     if image_path:
         image_path = os.path.join(project_root, image_path)
-    
+
     # NOW do database operations
-    claim_credential(platform_name, credential['id'], user_id, username_str, full_name)
-    db_redeem_key(platform_name, key_found['id'], user_id, username_str, full_name)
+    claim_credential(platform_name, credential['id'], user_id, username_str,
+                     full_name)
+    db_redeem_key(platform_name, key_found['id'], user_id, username_str,
+                  full_name)
 
     # Send success message with platform logo immediately after DB operations
     try:
-        if image_path and os.path.exists(image_path) and os.path.getsize(image_path) > 0:
+        if image_path and os.path.exists(image_path) and os.path.getsize(
+                image_path) > 0:
             with open(image_path, 'rb') as photo:
-                await update.message.reply_photo(
-                    photo=photo,
-                    caption=success_text,
-                    reply_markup=reply_markup,
-                    parse_mode='HTML'
-                )
+                await update.message.reply_photo(photo=photo,
+                                                 caption=success_text,
+                                                 reply_markup=reply_markup,
+                                                 parse_mode='HTML')
         else:
-            await update.message.reply_text(
-                success_text,
-                reply_markup=reply_markup,
-                parse_mode='HTML'
-            )
+            await update.message.reply_text(success_text,
+                                            reply_markup=reply_markup,
+                                            parse_mode='HTML')
     except Exception as e:
         logger.error(f"Failed to send photo, sending text instead: {e}")
-        await update.message.reply_text(
-            success_text,
-            reply_markup=reply_markup,
-            parse_mode='HTML'
-        )
+        await update.message.reply_text(success_text,
+                                        reply_markup=reply_markup,
+                                        parse_mode='HTML')
 
     # Send admin notifications in background (don't wait for them)
     import asyncio
     asyncio.create_task(
-        notify_admins_key_redeemed(
-            context.bot,
-            platform_name,
-            user_id,
-            username_str,
-            full_name,
-            key_code
-        )
-    )
+        notify_admins_key_redeemed(context.bot, platform_name, user_id,
+                                   username_str, full_name, key_code))
 
 
-async def participate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def participate_command(update: Update,
+                              context: ContextTypes.DEFAULT_TYPE):
     """Handle /participate command to join active giveaway"""
     user_id = str(update.effective_user.id)
     user = update.effective_user
@@ -622,7 +640,9 @@ async def participate_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # Check if user is banned
     if is_banned(int(user_id), username):
-        keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
+        keyboard = [[
+            InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")
+        ]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text(
             "🚫 <b>Access Denied</b>\n\n"
@@ -639,7 +659,10 @@ async def participate_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         # Check channel membership for regular users
         has_joined = await check_channel_membership(update, context)
         if not has_joined:
-            keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
+            keyboard = [[
+                InlineKeyboardButton("🔙 Back to Main",
+                                     callback_data="user_main")
+            ]]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await update.message.reply_text(
                 "⚠️ <b>Access Restricted</b>\n\n"
@@ -649,7 +672,9 @@ async def participate_command(update: Update, context: ContextTypes.DEFAULT_TYPE
                 parse_mode='HTML')
             return
 
-    keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
+    keyboard = [[
+        InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")
+    ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     with get_db_connection() as conn:
@@ -676,7 +701,8 @@ async def participate_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         giveaway_id, winners, end_time = result
 
         # Check if user already participated
-        cur.execute("""
+        cur.execute(
+            """
             SELECT COUNT(*) FROM giveaway_participants 
             WHERE giveaway_id = %s AND user_id = %s
         """, (giveaway_id, user_id))
@@ -691,7 +717,8 @@ async def participate_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
 
         # Add participant
-        cur.execute("""
+        cur.execute(
+            """
             INSERT INTO giveaway_participants (giveaway_id, user_id)
             VALUES (%s, %s)
         """, (giveaway_id, user_id))
@@ -718,7 +745,9 @@ async def redeem_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Check if user is banned
     if is_banned(user_id, username):
-        keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
+        keyboard = [[
+            InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")
+        ]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text(
             "🚫 <b>Access Denied</b>\n\n"
@@ -735,7 +764,10 @@ async def redeem_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Check channel membership for regular users
         has_joined = await check_channel_membership(update, context)
         if not has_joined:
-            keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
+            keyboard = [[
+                InlineKeyboardButton("🔙 Back to Main",
+                                     callback_data="user_main")
+            ]]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await update.message.reply_text(
                 "⚠️ <b>Access Restricted</b>\n\n"
@@ -750,7 +782,9 @@ async def redeem_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         key_code = context.args[0].strip().upper()
         await redeem_key(update, context, key_code)
     else:
-        keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
+        keyboard = [[
+            InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")
+        ]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text(
             text="🎁 <b>Redeem Key</b>\n\n"
