@@ -566,38 +566,33 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     if image_path:
         image_path = os.path.join(project_root, image_path)
     
-    # Open image file before database operations to fail fast if image is missing
-    photo_file = None
-    if image_path and os.path.exists(image_path) and os.path.getsize(image_path) > 0:
-        try:
-            photo_file = open(image_path, 'rb')
-        except Exception as e:
-            logger.error(f"Failed to open image: {e}")
-            photo_file = None
-
     # NOW do database operations
     claim_credential(platform_name, credential['id'], user_id, username_str, full_name)
     db_redeem_key(platform_name, key_found['id'], user_id, username_str, full_name)
 
-    # Send success message immediately after DB operations
+    # Send success message with platform logo immediately after DB operations
     try:
-        if photo_file:
-            await update.message.reply_photo(photo=photo_file,
-                                             caption=success_text,
-                                             reply_markup=reply_markup,
-                                             parse_mode='HTML')
-            photo_file.close()
+        if image_path and os.path.exists(image_path) and os.path.getsize(image_path) > 0:
+            with open(image_path, 'rb') as photo:
+                await update.message.reply_photo(
+                    photo=photo,
+                    caption=success_text,
+                    reply_markup=reply_markup,
+                    parse_mode='HTML'
+                )
         else:
-            await update.message.reply_text(success_text,
-                                            reply_markup=reply_markup,
-                                            parse_mode='HTML')
+            await update.message.reply_text(
+                success_text,
+                reply_markup=reply_markup,
+                parse_mode='HTML'
+            )
     except Exception as e:
         logger.error(f"Failed to send photo, sending text instead: {e}")
-        if photo_file:
-            photo_file.close()
-        await update.message.reply_text(success_text,
-                                        reply_markup=reply_markup,
-                                        parse_mode='HTML')
+        await update.message.reply_text(
+            success_text,
+            reply_markup=reply_markup,
+            parse_mode='HTML'
+        )
 
     # Send admin notifications in background (don't wait for them)
     import asyncio
