@@ -4,6 +4,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram.error import TelegramError
 import sys
+import logging
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db_helpers import (
     get_platforms, get_platform_by_name, get_key_by_code, redeem_key as db_redeem_key,
@@ -11,6 +12,10 @@ from db_helpers import (
     get_active_credential, claim_credential, get_db_connection,
     notify_admins_key_redeemed, notify_admins_credential_claimed
 )
+
+
+# Setup logging
+logger = logging.getLogger(__name__)
 
 
 def get_project_root():
@@ -140,7 +145,7 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cur.execute("SELECT COUNT(*) FROM giveaways WHERE active = true")
         has_active_giveaway = cur.fetchone()[0] > 0
         cur.close()
-    
+
     if has_active_giveaway:
         keyboard.insert(1, [
             InlineKeyboardButton("🎁 Join Giveaway",
@@ -315,10 +320,10 @@ async def join_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     user_id = str(update.effective_user.id)
-    
+
     with get_db_connection() as conn:
         cur = conn.cursor()
-        
+
         # Get active giveaway
         cur.execute("""
             SELECT g.id, g.winners, g.end_time
@@ -327,7 +332,7 @@ async def join_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
             LIMIT 1
         """)
         result = cur.fetchone()
-        
+
         if not result:
             await query.edit_message_text(
                 text="❌ <b>No Active Giveaway</b>\n\n"
@@ -335,26 +340,26 @@ async def join_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "Check back later!",
                 parse_mode='HTML')
             return
-        
+
         giveaway_id, winners, end_time = result
-        
+
         # Check if user already participated
         cur.execute("""
             SELECT COUNT(*) FROM giveaway_participants 
             WHERE giveaway_id = %s AND user_id = %s
         """, (giveaway_id, user_id))
-        
+
         if cur.fetchone()[0] > 0:
             await query.answer("⚠️ You're already in this giveaway!",
                                show_alert=True)
             return
-        
+
         # Add participant
         cur.execute("""
             INSERT INTO giveaway_participants (giveaway_id, user_id)
             VALUES (%s, %s)
         """, (giveaway_id, user_id))
-        
+
         cur.close()
 
     keyboard = [[
@@ -415,6 +420,9 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     """Redeem a key"""
     user_id = str(update.effective_user.id)
     key_code = key_code.strip().upper()
+    user = update.effective_user
+    username_str = user.username if user.username else "N/A"
+    full_name = user.full_name if user.full_name else "N/A"
 
     # Find the key in database
     key_found = get_key_by_code(key_code)
@@ -486,37 +494,12 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
         return
 
     # Get full user details and platform info
-    full_name = update.effective_user.full_name
-    username_str = update.effective_user.username
     platform_name = key_found.get('platform', 'Unknown')
     account_text = key_found.get('account_text', 'Premium Account')
-    
-    # Claim credential and redeem key atomically
-    claim_credential(credential['id'], str(user_id), username_str, full_name)
-    db_redeem_key(key_found['id'], str(user_id), username_str, full_name)
-    
-    # Send notifications to all admins
-    try:
-        await notify_admins_key_redeemed(
-            context.bot,
-            platform_name,
-            user_id,
-            username_str,
-            full_name,
-            key_code.upper()
-        )
-        await notify_admins_credential_claimed(
-            context.bot,
-            platform_name,
-            user_id,
-            username_str,
-            full_name,
-            credential['email']
-        )
-    except Exception as e:
-        print(f"Failed to send admin notifications: {e}")
 
-    # Send credential to user
+    # Claim credential and redeem key atomically
+    claim_credential(credential['id'], user_id, username_str, full_name)
+    db_redeem_key(key_found['id'], user_id, username_str, full_name)
 
     # Prepare success message
     success_text = (
@@ -550,46 +533,41 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
         'PSNFA': 'assets/platform-logos/psnfa.jpg',
         'Xbox': 'assets/platform-logos/xbox.jpg'
     }
-    logo_path = platform_images.get(platform_name)
-    if logo_path:
-        logo_path = os.path.join(project_root, logo_path)
-    
-    # Send with logo if available, otherwise send as text
-    if logo_path and os.path.exists(logo_path):
-        try:
-            with open(logo_path, 'rb') as logo_file:
-                if update.message:
-                    await update.message.reply_photo(
-                        photo=logo_file,
-                        caption=success_text,
-                        reply_markup=reply_markup,
-                        parse_mode='HTML')
-                elif update.callback_query:
-                    await update.callback_query.message.reply_photo(
-                        photo=logo_file,
-                        caption=success_text,
-                        reply_markup=reply_markup,
-                        parse_mode='HTML')
-        except Exception as e:
-            # If logo sending fails, send as text
-            if update.message:
-                await update.message.reply_text(text=success_text,
-                                                reply_markup=reply_markup,
-                                                parse_mode='HTML')
-            elif update.callback_query:
-                await update.callback_query.message.reply_text(text=success_text,
-                                                              reply_markup=reply_markup,
-                                                              parse_mode='HTML')
-    else:
-        # No logo available, send as text
-        if update.message:
-            await update.message.reply_text(text=success_text,
+    image_path = platform_images.get(platform_name)
+    if image_path:
+        image_path = os.path.join(project_root, image_path)
+
+    # Send success message with credential
+    try:
+        if image_path and os.path.exists(image_path) and os.path.getsize(image_path) > 0:
+            with open(image_path, 'rb') as photo:
+                await update.message.reply_photo(photo=photo,
+                                                 caption=success_text,
+                                                 reply_markup=reply_markup,
+                                                 parse_mode='HTML')
+        else:
+            await update.message.reply_text(success_text,
                                             reply_markup=reply_markup,
                                             parse_mode='HTML')
-        elif update.callback_query:
-            await update.callback_query.message.reply_text(text=success_text,
-                                                          reply_markup=reply_markup,
-                                                          parse_mode='HTML')
+    except Exception as e:
+        logger.error(f"Failed to send image, sending text instead: {e}")
+        await update.message.reply_text(success_text,
+                                        reply_markup=reply_markup,
+                                        parse_mode='HTML')
+
+    # Send admin notifications immediately after user receives credential
+    try:
+        await notify_admins_key_redeemed(
+            context.bot,
+            platform_name,
+            user_id,
+            username_str,
+            full_name,
+            key_code
+        )
+        logger.info(f"Admin notification sent for key redemption: {key_code} by user {user_id}")
+    except Exception as e:
+        logger.error(f"Failed to send admin notifications: {e}")
 
 
 async def participate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -632,7 +610,7 @@ async def participate_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     with get_db_connection() as conn:
         cur = conn.cursor()
-        
+
         # Get active giveaway
         cur.execute("""
             SELECT g.id, g.winners, g.end_time
@@ -641,7 +619,7 @@ async def participate_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             LIMIT 1
         """)
         result = cur.fetchone()
-        
+
         if not result:
             await update.message.reply_text(
                 "❌ <b>No Active Giveaway</b>\n\n"
@@ -650,15 +628,15 @@ async def participate_command(update: Update, context: ContextTypes.DEFAULT_TYPE
                 reply_markup=reply_markup,
                 parse_mode='HTML')
             return
-        
+
         giveaway_id, winners, end_time = result
-        
+
         # Check if user already participated
         cur.execute("""
             SELECT COUNT(*) FROM giveaway_participants 
             WHERE giveaway_id = %s AND user_id = %s
         """, (giveaway_id, user_id))
-        
+
         if cur.fetchone()[0] > 0:
             await update.message.reply_text(
                 "⚠️ <b>Already Participating</b>\n\n"
@@ -667,13 +645,13 @@ async def participate_command(update: Update, context: ContextTypes.DEFAULT_TYPE
                 reply_markup=reply_markup,
                 parse_mode='HTML')
             return
-        
+
         # Add participant
         cur.execute("""
             INSERT INTO giveaway_participants (giveaway_id, user_id)
             VALUES (%s, %s)
         """, (giveaway_id, user_id))
-        
+
         cur.close()
 
     await update.message.reply_text(

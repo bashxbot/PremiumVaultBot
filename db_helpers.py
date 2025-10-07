@@ -390,18 +390,18 @@ async def notify_admins_key_redeemed(bot, platform, user_id, username, full_name
     if not admin_ids:
         return
     
-    username_text = f"@{username}" if username else "N/A"
+    username_text = f"@{username}" if username and username != "N/A" else "N/A"
     full_name_text = full_name if full_name else "N/A"
     
     message = (
-        f"🎁 <b>Key Redeemed!</b>\n\n"
-        f"🎮 <b>Platform:</b> {platform}\n"
-        f"🔑 <b>Key:</b> <code>{key_code}</code>\n\n"
-        f"👤 <b>User Details:</b>\n"
+        f"🎉 <b>Key Redeemed Successfully!</b>\n\n"
+        f"🔑 <b>Key:</b> <code>{key_code}</code>\n"
+        f"🎮 <b>Platform:</b> {platform}\n\n"
+        f"👤 <b>User Information:</b>\n"
         f"├ <b>Name:</b> {full_name_text}\n"
-        f"├ <b>Chat ID:</b> <code>{user_id}</code>\n"
-        f"└ <b>Username:</b> {username_text}\n\n"
-        f"⏰ <b>Time:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        f"├ <b>Username:</b> {username_text}\n"
+        f"└ <b>Chat ID:</b> <code>{user_id}</code>\n\n"
+        f"⏰ <b>Redeemed At:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     )
     
     for admin_id in admin_ids:
@@ -412,7 +412,7 @@ async def notify_admins_key_redeemed(bot, platform, user_id, username, full_name
                 parse_mode='HTML'
             )
         except Exception as e:
-            print(f"Failed to notify admin {admin_id}: {e}")
+            print(f"Failed to notify admin {admin_id}: {e}")in {admin_id}: {e}")
 
 async def notify_admins_credential_claimed(bot, platform, user_id, username, full_name, email):
     """Send notification to all admins when a credential is claimed"""
