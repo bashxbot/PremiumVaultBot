@@ -42,7 +42,7 @@ def add_credential(platform_name, email, password, status='active'):
         return cred_id
 
 def get_credentials_by_platform(platform_name):
-    """Get all credentials for a platform"""
+    """Get all credentials for a platform with claimer information"""
     platform = get_platform_by_name(platform_name)
     if not platform:
         return []
@@ -50,7 +50,8 @@ def get_credentials_by_platform(platform_name):
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute("""
-            SELECT id, email, password, status, claimed_by, claimed_at, created_at
+            SELECT id, email, password, status, claimed_by, claimed_by_username, 
+                   claimed_by_name, claimed_at, created_at
             FROM credentials
             WHERE platform_id = %s
             ORDER BY created_at DESC
@@ -64,8 +65,10 @@ def get_credentials_by_platform(platform_name):
             'password': c[2],
             'status': c[3],
             'claimed_by': c[4],
-            'claimed_at': c[5].isoformat() if c[5] else None,
-            'created_at': c[6].isoformat() if c[6] else None
+            'claimed_by_username': c[5],
+            'claimed_by_name': c[6],
+            'claimed_at': c[7].isoformat() if c[7] else None,
+            'created_at': c[8].isoformat() if c[8] else None
         } for c in credentials]
 
 def update_credential(cred_id, email=None, password=None, status=None):
@@ -220,10 +223,10 @@ def get_keys_by_platform(platform_name):
                 'redeemed_by': []
             }
             
-            # Get redemption info
+            # Get redemption info with full user details
             cur = conn.cursor()
             cur.execute("""
-                SELECT user_id, username, redeemed_at
+                SELECT user_id, username, full_name, redeemed_at
                 FROM key_redemptions
                 WHERE key_id = %s
                 ORDER BY redeemed_at DESC
@@ -236,7 +239,8 @@ def get_keys_by_platform(platform_name):
                 key_data['redeemed_by'].append({
                     'user_id': r[0],
                     'username': r[1],
-                    'redeemed_at': r[2].isoformat() if r[2] else None
+                    'full_name': r[2],
+                    'redeemed_at': r[3].isoformat() if r[3] else None
                 })
             
             result.append(key_data)
