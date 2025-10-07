@@ -940,10 +940,21 @@ async def handle_admin_message(update: Update,
         platform_name = get_platform_display_name(platform)
         generated_keys = []
 
-        for _ in range(count):
-            key_code = generate_key_code(platform_name)
-            add_key(key_code, platform_name, uses, account_text)
-            generated_keys.append(key_code)
+        try:
+            for _ in range(count):
+                key_code = generate_key_code(platform_name)
+                add_key(key_code, platform_name, uses, account_text)
+                generated_keys.append(key_code)
+        except Exception as e:
+            logger.error(f"Error generating keys: {e}")
+            keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text(f"❌ Error generating keys: {e}", reply_markup=reply_markup, parse_mode='HTML')
+            context.user_data.pop('gen_step', None)
+            context.user_data.pop('gen_platform', None)
+            context.user_data.pop('gen_count', None)
+            context.user_data.pop('gen_uses', None)
+            return
 
         # Clear user data
         context.user_data.pop('gen_step', None)
@@ -980,23 +991,25 @@ async def handle_admin_message(update: Update,
                         f"💡 <i>Tap to copy!</i>")
 
         image_path = platform_images.get(platform.lower())
+        sent_with_image = False
+        
         if image_path:
-            image_path = os.path.join(project_root, image_path)
+            full_image_path = os.path.join(project_root, image_path)
             
-        # Try to send with image, fall back to text if image doesn't exist
-        try:
-            if image_path and os.path.exists(image_path) and os.path.getsize(image_path) > 0:
-                with open(image_path, 'rb') as photo:
-                    await update.message.reply_photo(photo=photo,
-                                                     caption=caption_text,
-                                                     reply_markup=reply_markup,
-                                                     parse_mode='HTML')
-            else:
-                await update.message.reply_text(caption_text,
-                                                reply_markup=reply_markup,
-                                                parse_mode='HTML')
-        except Exception as e:
-            logger.error(f"Failed to send image, sending text instead: {e}")
+            # Try to send with image
+            if os.path.exists(full_image_path):
+                try:
+                    with open(full_image_path, 'rb') as photo:
+                        await update.message.reply_photo(photo=photo,
+                                                         caption=caption_text,
+                                                         reply_markup=reply_markup,
+                                                         parse_mode='HTML')
+                        sent_with_image = True
+                except Exception as e:
+                    logger.error(f"Failed to send image for {platform}: {e}")
+        
+        # Fallback to text if image wasn't sent
+        if not sent_with_image:
             await update.message.reply_text(caption_text,
                                             reply_markup=reply_markup,
                                             parse_mode='HTML')
@@ -1480,9 +1493,16 @@ def get_platform_display_name(platform):
         'molotovtv': 'MolotovTV',
         'disneyplus': 'DisneyPlus',
         'psnfa': 'PSNFA',
-        'xbox': 'Xbox'
+        'xbox': 'Xbox',
+        'spotify': 'Spotify'
     }
-    return platform_map.get(platform.lower(), platform.capitalize())
+    # First check exact match in map
+    result = platform_map.get(platform.lower())
+    if result:
+        return result
+    
+    # If not in map, capitalize first letter of each word
+    return platform.title()
 
 def parse_duration(duration_str):
     """Parse duration string to seconds"""
