@@ -31,6 +31,21 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(seconds=86400)
 
 PLATFORMS = ['netflix', 'crunchyroll', 'wwe', 'paramountplus', 'dazn', 'molotovtv', 'disneyplus', 'psnfa', 'xbox']
 
+def get_platform_title(platform):
+    """Convert platform key to proper title format"""
+    platform_map = {
+        'netflix': 'Netflix',
+        'crunchyroll': 'Crunchyroll',
+        'wwe': 'WWE',
+        'paramountplus': 'ParamountPlus',
+        'dazn': 'Dazn',
+        'molotovtv': 'MolotovTV',
+        'disneyplus': 'DisneyPlus',
+        'psnfa': 'PSNFA',
+        'xbox': 'Xbox'
+    }
+    return platform_map.get(platform.lower(), platform.capitalize())
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -336,23 +351,7 @@ def add_credential(platform):
     if not email or not password:
         return jsonify({'success': False, 'message': 'Email and password are required'}), 400
     
-    platform_title = platform.capitalize()
-    if platform == 'paramountplus':
-        platform_title = 'ParamountPlus'
-    elif platform == 'molotovtv':
-        platform_title = 'MolotovTV'
-    elif platform == 'disneyplus':
-        platform_title = 'DisneyPlus'
-    elif platform == 'psnfa':
-        platform_title = 'PSNFA'
-    elif platform == 'xbox':
-        platform_title = 'Xbox'
-    elif platform == 'crunchyroll':
-        platform_title = 'Crunchyroll'
-    elif platform == 'wwe':
-        platform_title = 'WWE'
-    elif platform == 'dazn':
-        platform_title = 'Dazn'
+    platform_title = get_platform_title(platform)
     
     cred_id = db_add_credential(platform_title, email, password, status)
     if cred_id:
@@ -372,23 +371,7 @@ def upload_credentials(platform):
     if file.filename == '':
         return jsonify({'success': False, 'message': 'No file selected'}), 400
     
-    platform_title = platform.capitalize()
-    if platform == 'paramountplus':
-        platform_title = 'ParamountPlus'
-    elif platform == 'molotovtv':
-        platform_title = 'MolotovTV'
-    elif platform == 'disneyplus':
-        platform_title = 'DisneyPlus'
-    elif platform == 'psnfa':
-        platform_title = 'PSNFA'
-    elif platform == 'xbox':
-        platform_title = 'Xbox'
-    elif platform == 'crunchyroll':
-        platform_title = 'Crunchyroll'
-    elif platform == 'wwe':
-        platform_title = 'WWE'
-    elif platform == 'dazn':
-        platform_title = 'Dazn'
+    platform_title = get_platform_title(platform)
     
     content = file.read().decode('utf-8')
     lines = content.strip().split('\n')
@@ -498,23 +481,7 @@ def get_keys(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
     
-    platform_title = platform.capitalize()
-    if platform == 'paramountplus':
-        platform_title = 'ParamountPlus'
-    elif platform == 'molotovtv':
-        platform_title = 'MolotovTV'
-    elif platform == 'disneyplus':
-        platform_title = 'DisneyPlus'
-    elif platform == 'psnfa':
-        platform_title = 'PSNFA'
-    elif platform == 'xbox':
-        platform_title = 'Xbox'
-    elif platform == 'crunchyroll':
-        platform_title = 'Crunchyroll'
-    elif platform == 'wwe':
-        platform_title = 'WWE'
-    elif platform == 'dazn':
-        platform_title = 'Dazn'
+    platform_title = get_platform_title(platform)
     
     platform_keys = get_keys_by_platform(platform_title)
     

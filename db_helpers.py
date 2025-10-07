@@ -243,7 +243,7 @@ def get_keys_by_platform(platform_name):
                 cur2.execute("""
                     SELECT user_id, username, full_name, redeemed_at
                     FROM key_redemptions
-                    WHERE platform = %s AND key_code = %s
+                    WHERE LOWER(platform) = %s AND key_code = %s
                     ORDER BY redeemed_at DESC
                 """, (platform_lower, k[1]))
                 redemptions = cur2.fetchall()
@@ -292,7 +292,7 @@ def redeem_key(platform_name, key_id, user_id, username=None, full_name=None):
         cur.execute("""
             INSERT INTO key_redemptions (platform, key_code, user_id, username, full_name)
             VALUES (%s, %s, %s, %s, %s)
-        """, (platform_lower, key_code, user_id, username, full_name))
+        """, (platform_lower, key_code, str(user_id), username, full_name))
 
         cur.close()
         return True
