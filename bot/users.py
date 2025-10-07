@@ -581,23 +581,29 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Get platform logo path - try PNG first, then JPG
-    project_root = get_project_root()
+    # Get platform logo path - try multiple locations
     platform_lower = platform_name.lower()
     image_path = None
+    
+    # Get bot directory (where this file is located)
+    bot_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(bot_dir)
 
-    # Try PNG first (from attached_assets)
-    png_path = os.path.join(project_root, 'attached_assets', 'platforms', f'{platform_lower}.png')
-    jpg_path = os.path.join(project_root, 'assets', 'platform-logos', f'{platform_lower}.jpg')
+    # Try multiple paths in order of preference
+    potential_paths = [
+        os.path.join(bot_dir, 'assets', f'{platform_lower}.png'),  # bot/assets (most reliable)
+        os.path.join(project_root, 'attached_assets', 'platforms', f'{platform_lower}.png'),
+        os.path.join(project_root, 'assets', 'platform-logos', f'{platform_lower}.jpg'),
+    ]
 
-    if os.path.exists(png_path) and os.path.getsize(png_path) > 0:
-        image_path = png_path
-        logger.info(f"Using PNG image at: {image_path}")
-    elif os.path.exists(jpg_path) and os.path.getsize(jpg_path) > 0:
-        image_path = jpg_path
-        logger.info(f"Using JPG image at: {image_path}")
-    else:
-        logger.warning(f"No valid image found for platform: {platform_name}")
+    for path in potential_paths:
+        if os.path.exists(path) and os.path.getsize(path) > 0:
+            image_path = path
+            logger.info(f"Using platform logo at: {image_path}")
+            break
+    
+    if not image_path:
+        logger.warning(f"No valid image found for platform: {platform_name} (checked {len(potential_paths)} locations)")
 
     # NOW do database operations
     claim_credential(platform_name, credential['id'], user_id, username_str,
