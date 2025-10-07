@@ -90,13 +90,24 @@ def run_bot():
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 def run_flask():
-    """Run the Flask admin panel"""
-    import os
-    from api_server import app
+    """Run the Flask admin panel with Gunicorn"""
+    import subprocess
+    import sys
     
-    port = int(os.getenv('PORT', 5000))
-    logger.info(f"🌐 Admin Panel starting on port {port}...")
-    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
+    port = os.getenv('PORT', '10000')
+    logger.info(f"🌐 Admin Panel starting on port {port} with Gunicorn...")
+    
+    # Run Gunicorn as a subprocess
+    subprocess.Popen([
+        sys.executable, '-m', 'gunicorn',
+        '--bind', f'0.0.0.0:{port}',
+        '--workers', '2',
+        '--threads', '2',
+        '--timeout', '120',
+        '--access-logfile', '-',
+        '--error-logfile', '-',
+        'api_server:app'
+    ])
 
 if __name__ == "__main__":
     logger.info("🚀 Starting Premium Vault - Bot & Admin Panel")
@@ -111,10 +122,13 @@ if __name__ == "__main__":
         logger.error(f"❌ Database initialization failed: {e}")
         logger.info("⚠️ Continuing without database - please check DATABASE_URL")
     
-    # Start Flask in a separate thread
-    flask_thread = threading.Thread(target=run_flask, daemon=True)
-    flask_thread.start()
-    logger.info("✅ Flask admin panel thread started")
+    # Start Flask with Gunicorn in background
+    run_flask()
+    logger.info("✅ Gunicorn Flask server started")
+    
+    # Small delay to let Gunicorn start
+    import time
+    time.sleep(2)
     
     # Run bot in main thread (blocking)
     run_bot()
