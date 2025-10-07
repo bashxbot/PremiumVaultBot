@@ -74,92 +74,64 @@ def init_database():
     with get_db_connection() as conn:
         cur = conn.cursor()
         
-        # Create platforms table
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS platforms (
-                id SERIAL PRIMARY KEY,
-                name VARCHAR(50) UNIQUE NOT NULL,
-                emoji VARCHAR(10) NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+        # Define platforms
+        platforms = [
+            ('netflix', 'Netflix', '🎬'),
+            ('crunchyroll', 'Crunchyroll', '🍜'),
+            ('wwe', 'WWE', '🤼'),
+            ('paramountplus', 'ParamountPlus', '⭐'),
+            ('dazn', 'Dazn', '🥊'),
+            ('molotovtv', 'MolotovTV', '📺'),
+            ('disneyplus', 'DisneyPlus', '🏰'),
+            ('psnfa', 'PSNFA', '🎮'),
+            ('xbox', 'Xbox', '🎯')
+        ]
         
-        # Create credentials table
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS credentials (
-                id SERIAL PRIMARY KEY,
-                platform_id INTEGER REFERENCES platforms(id) ON DELETE CASCADE,
-                email VARCHAR(255) NOT NULL,
-                password VARCHAR(255) NOT NULL,
-                status VARCHAR(20) DEFAULT 'active',
-                claimed_by VARCHAR(50),
-                claimed_by_username VARCHAR(255),
-                claimed_by_name VARCHAR(255),
-                claimed_at TIMESTAMP,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+        # Create separate credential tables for each platform
+        for platform_key, platform_name, emoji in platforms:
+            cur.execute(f"""
+                CREATE TABLE IF NOT EXISTS {platform_key}_credentials (
+                    id SERIAL PRIMARY KEY,
+                    email VARCHAR(255) NOT NULL,
+                    password VARCHAR(255) NOT NULL,
+                    status VARCHAR(20) DEFAULT 'active',
+                    claimed_by VARCHAR(50),
+                    claimed_by_username VARCHAR(255),
+                    claimed_by_name VARCHAR(255),
+                    claimed_at TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
         
-        # Add new columns if they don't exist (for existing databases)
-        cur.execute("""
-            DO $$ 
-            BEGIN
-                IF NOT EXISTS (
-                    SELECT 1 FROM information_schema.columns 
-                    WHERE table_name = 'credentials' AND column_name = 'claimed_by_username'
-                ) THEN
-                    ALTER TABLE credentials ADD COLUMN claimed_by_username VARCHAR(255);
-                END IF;
-                IF NOT EXISTS (
-                    SELECT 1 FROM information_schema.columns 
-                    WHERE table_name = 'credentials' AND column_name = 'claimed_by_name'
-                ) THEN
-                    ALTER TABLE credentials ADD COLUMN claimed_by_name VARCHAR(255);
-                END IF;
-            END $$;
-        """)
+        # Create separate key tables for each platform
+        for platform_key, platform_name, emoji in platforms:
+            cur.execute(f"""
+                CREATE TABLE IF NOT EXISTS {platform_key}_keys (
+                    id SERIAL PRIMARY KEY,
+                    key_code VARCHAR(100) UNIQUE NOT NULL,
+                    uses INTEGER DEFAULT 1,
+                    remaining_uses INTEGER DEFAULT 1,
+                    account_text VARCHAR(255),
+                    status VARCHAR(20) DEFAULT 'active',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    redeemed_at TIMESTAMP,
+                    giveaway_generated BOOLEAN DEFAULT FALSE,
+                    giveaway_winner VARCHAR(50)
+                )
+            """)
         
-        # Create keys table
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS keys (
-                id SERIAL PRIMARY KEY,
-                key_code VARCHAR(100) UNIQUE NOT NULL,
-                platform_id INTEGER REFERENCES platforms(id) ON DELETE CASCADE,
-                uses INTEGER DEFAULT 1,
-                remaining_uses INTEGER DEFAULT 1,
-                account_text VARCHAR(255),
-                status VARCHAR(20) DEFAULT 'active',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                redeemed_at TIMESTAMP,
-                giveaway_generated BOOLEAN DEFAULT FALSE,
-                giveaway_winner VARCHAR(50)
-            )
-        """)
-        
-        # Create key_redemptions table
+        # Create key_redemptions table (single table for all platforms)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS key_redemptions (
                 id SERIAL PRIMARY KEY,
-                key_id INTEGER REFERENCES keys(id) ON DELETE CASCADE,
+                platform VARCHAR(50) NOT NULL,
+                key_code VARCHAR(100) NOT NULL,
                 user_id VARCHAR(50) NOT NULL,
                 username VARCHAR(255),
                 full_name VARCHAR(255),
                 redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        """)
-        
-        # Add full_name column if it doesn't exist (for existing databases)
-        cur.execute("""
-            DO $$ 
-            BEGIN
-                IF NOT EXISTS (
-                    SELECT 1 FROM information_schema.columns 
-                    WHERE table_name = 'key_redemptions' AND column_name = 'full_name'
-                ) THEN
-                    ALTER TABLE key_redemptions ADD COLUMN full_name VARCHAR(255);
-                END IF;
-            END $$;
         """)
         
         # Create users table
@@ -185,7 +157,7 @@ def init_database():
         cur.execute("""
             CREATE TABLE IF NOT EXISTS giveaways (
                 id SERIAL PRIMARY KEY,
-                platform_id INTEGER REFERENCES platforms(id) ON DELETE CASCADE,
+                platform VARCHAR(50) NOT NULL,
                 active BOOLEAN DEFAULT TRUE,
                 duration VARCHAR(10),
                 winners INTEGER,
@@ -216,26 +188,6 @@ def init_database():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        
-        # Insert default platforms (excluding Spotify)
-        platforms = [
-            ('Netflix', '🎬'),
-            ('Crunchyroll', '🍜'),
-            ('WWE', '🤼'),
-            ('ParamountPlus', '⭐'),
-            ('Dazn', '🥊'),
-            ('MolotovTV', '📺'),
-            ('DisneyPlus', '🏰'),
-            ('PSNFA', '🎮'),
-            ('Xbox', '🎯')
-        ]
-        
-        for name, emoji in platforms:
-            cur.execute("""
-                INSERT INTO platforms (name, emoji) 
-                VALUES (%s, %s) 
-                ON CONFLICT (name) DO NOTHING
-            """, (name, emoji))
         
         # Insert default admin if not exists
         default_admin_username = os.getenv('ADMIN_USERNAME', 'admin')
