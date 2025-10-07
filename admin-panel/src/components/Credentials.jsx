@@ -73,11 +73,11 @@ function Credentials({ platform, refreshStats }) {
     }
   }
 
-  const handleDelete = async (index) => {
+  const handleDelete = async (credId) => {
     if (!confirm('Are you sure you want to delete this credential?')) return
     
     try {
-      const response = await fetch(`/api/credentials/${platform}/${index}`, {
+      const response = await fetch(`/api/credentials/${platform}/${credId}`, {
         method: 'DELETE'
       })
       const data = await response.json()
@@ -134,8 +134,8 @@ function Credentials({ platform, refreshStats }) {
     }
   }
 
-  const openEditModal = (index, cred) => {
-    setEditIndex(index)
+  const openEditModal = (credId, cred) => {
+    setEditIndex(credId)
     setFormData({ email: cred.email, password: cred.password, status: cred.status })
     setShowModal(true)
   }
@@ -184,7 +184,7 @@ function Credentials({ platform, refreshStats }) {
         </thead>
         <tbody>
           {credentials.map((cred, index) => (
-            <tr key={index}>
+            <tr key={cred.id}>
               <td>{index + 1}</td>
               <td>{cred.email}</td>
               <td>{cred.password}</td>
@@ -193,8 +193,8 @@ function Credentials({ platform, refreshStats }) {
               </td>
               <td>{cred.created_at ? cred.created_at.slice(0, 19) : 'N/A'}</td>
               <td>
-                <button className="btn btn-sm btn-warning" onClick={() => openEditModal(index, cred)}><MdEdit /></button>
-                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(index)}><MdDelete /></button>
+                <button className="btn btn-sm btn-warning" onClick={() => openEditModal(cred.id, cred)}><MdEdit /></button>
+                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(cred.id)}><MdDelete /></button>
               </td>
             </tr>
           ))}

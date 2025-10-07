@@ -103,27 +103,18 @@ function Keys({ platform }) {
         </thead>
         <tbody>
           {keys.map((key, index) => (
-            <tr key={index}>
+            <tr key={key.id || index}>
               <td>{index + 1}</td>
-              <td><code className="key-code">{key.key}</code></td>
+              <td><code className="key-code">{key.key_code || key.key}</code></td>
               <td>
                 <span className={`badge badge-${key.status}`}>{key.status}</span>
               </td>
-              <td>{key.remaining_uses} / {key.total_uses}</td>
+              <td>{key.remaining_uses} / {key.uses}</td>
               <td>{key.created_at ? key.created_at.slice(0, 19) : 'N/A'}</td>
-              <td>{key.expires_at ? key.expires_at.slice(0, 19) : 'Never'}</td>
+              <td>{key.redeemed_at ? key.redeemed_at.slice(0, 19) : 'Never'}</td>
               <td>
-                {key.users_info && key.users_info.length > 0 ? (
-                  <details>
-                    <summary>{key.users_info.length} users</summary>
-                    <ul className="users-list">
-                      {key.users_info.map((user, i) => (
-                        <li key={i}>
-                          User ID: {user.id} (Joined: {user.joined ? user.joined.slice(0, 19) : 'N/A'})
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
+                {key.giveaway_winner ? (
+                  <span>Giveaway winner: {key.giveaway_winner}</span>
                 ) : (
                   <span style={{ color: '#999' }}>Not used yet</span>
                 )}

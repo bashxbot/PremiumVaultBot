@@ -299,25 +299,27 @@ def get_credentials(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
     
-    platform_title = platform.capitalize()
-    if platform == 'paramountplus':
-        platform_title = 'ParamountPlus'
-    elif platform == 'molotovtv':
-        platform_title = 'MolotovTV'
-    elif platform == 'disneyplus':
-        platform_title = 'DisneyPlus'
-    elif platform == 'psnfa':
-        platform_title = 'PSNFA'
-    elif platform == 'xbox':
-        platform_title = 'Xbox'
-    elif platform == 'crunchyroll':
-        platform_title = 'Crunchyroll'
-    elif platform == 'wwe':
-        platform_title = 'WWE'
-    elif platform == 'dazn':
-        platform_title = 'Dazn'
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(f"""
+            SELECT id, email, password, status, created_at, updated_at
+            FROM {platform}_credentials
+            ORDER BY created_at DESC
+        """)
+        rows = cur.fetchall()
+        cur.close()
+        
+        credentials = []
+        for row in rows:
+            credentials.append({
+                'id': row[0],
+                'email': row[1],
+                'password': row[2],
+                'status': row[3],
+                'created_at': row[4].isoformat() if row[4] else None,
+                'updated_at': row[5].isoformat() if row[5] else None
+            })
     
-    credentials = get_credentials_by_platform(platform_title)
     return jsonify({'success': True, 'credentials': credentials})
 
 @app.route('/api/credentials/<platform>', methods=['POST'])
@@ -427,7 +429,13 @@ def delete_credential(platform, cred_id):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
     
-    if db_delete_credential(platform, cred_id):
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(f"DELETE FROM {platform}_credentials WHERE id = %s", (cred_id,))
+        deleted = cur.rowcount > 0
+        cur.close()
+    
+    if deleted:
         return jsonify({'success': True, 'message': 'Credential deleted successfully'})
     
     return jsonify({'success': False, 'message': 'Failed to delete credential'}), 500
@@ -443,7 +451,17 @@ def edit_credential(platform, cred_id):
     password = data.get('password')
     status = data.get('status')
     
-    if db_update_credential(platform, cred_id, email, password, status):
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(f"""
+            UPDATE {platform}_credentials 
+            SET email = %s, password = %s, status = %s, updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        """, (email, password, status, cred_id))
+        updated = cur.rowcount > 0
+        cur.close()
+    
+    if updated:
         return jsonify({'success': True, 'message': 'Credential updated successfully'})
     
     return jsonify({'success': False, 'message': 'Failed to update credential'}), 500
