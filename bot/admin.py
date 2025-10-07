@@ -544,10 +544,19 @@ async def list_keys_by_platform(update: Update,
 
             if key_data.get('redeemed_at'):
                 text += f"   ⏰ Last Redeemed: {key_data.get('redeemed_at')[:19]}\n"
-            if key_data.get('used_by'):
-                last_user = key_data['used_by'][-1]
-                text += f"   👤 Last User: {last_user}\n"
-
+            
+            # Show detailed redeemer info
+            if key_data.get('redeemed_by'):
+                text += f"   👥 <b>Redeemers:</b>\n"
+                for redeemer in key_data.get('redeemed_by', []):
+                    name = redeemer.get('full_name', 'N/A')
+                    username = redeemer.get('username', 'N/A')
+                    user_id = redeemer.get('user_id', 'N/A')
+                    redeemed_at = redeemer.get('redeemed_at', 'Unknown')[:19] if redeemer.get('redeemed_at') else 'Unknown'
+                    
+                    username_text = f"@{username}" if username and username != "N/A" else "No username"
+                    text += f"      • {name} ({username_text})\n"
+                    text += f"        ID: <code>{user_id}</code> | {redeemed_at}\n"
 
         if len(platform_keys) > 15:
             text += f"\n... and {len(platform_keys) - 15} more keys"
@@ -973,15 +982,16 @@ async def handle_admin_message(update: Update,
         # Send platform image with keys
         project_root = get_project_root()
         platform_images = {
-            'netflix': 'attached_assets/platforms/netflix.png',
-            'crunchyroll': 'attached_assets/platforms/crunchyroll.png',
-            'wwe': 'attached_assets/platforms/wwe.png',
-            'paramountplus': 'attached_assets/platforms/paramountplus.png',
-            'dazn': 'attached_assets/platforms/dazn.png',
-            'molotovtv': 'attached_assets/platforms/molotovtv.png',
-            'disneyplus': 'attached_assets/platforms/disneyplus.png',
-            'psnfa': 'attached_assets/platforms/psnfa.png',
-            'xbox': 'attached_assets/platforms/xbox.png'
+            'netflix': 'assets/platform-logos/netflix.jpg',
+            'crunchyroll': 'assets/platform-logos/crunchyroll.jpg',
+            'wwe': 'assets/platform-logos/wwe.jpg',
+            'paramountplus': 'assets/platform-logos/paramountplus.jpg',
+            'dazn': 'assets/platform-logos/dazn.jpg',
+            'molotovtv': 'assets/platform-logos/molotovtv.jpg',
+            'disneyplus': 'assets/platform-logos/disneyplus.jpg',
+            'psnfa': 'assets/platform-logos/psnfa.jpg',
+            'xbox': 'assets/platform-logos/xbox.jpg',
+            'spotify': 'assets/platform-logos/spotify.jpg'
         }
 
         caption_text = (f"🔑 <b>Generated Keys for {platform_name}</b>\n\n"
@@ -1236,15 +1246,16 @@ async def handle_admin_message(update: Update,
             # Send platform image with credentials
             project_root = get_project_root()
             platform_images = {
-                'netflix': 'attached_assets/platforms/netflix.png',
-                'crunchyroll': 'attached_assets/platforms/crunchyroll.png',
-                'wwe': 'attached_assets/platforms/wwe.png',
-                'paramountplus': 'attached_assets/platforms/paramountplus.png',
-                'dazn': 'attached_assets/platforms/dazn.png',
-                'molotovtv': 'attached_assets/platforms/molotovtv.png',
-                'disneyplus': 'attached_assets/platforms/disneyplus.png',
-                'psnfa': 'attached_assets/platforms/psnfa.png',
-                'xbox': 'attached_assets/platforms/xbox.png'
+                'netflix': 'assets/platform-logos/netflix.jpg',
+                'crunchyroll': 'assets/platform-logos/crunchyroll.jpg',
+                'wwe': 'assets/platform-logos/wwe.jpg',
+                'paramountplus': 'assets/platform-logos/paramountplus.jpg',
+                'dazn': 'assets/platform-logos/dazn.jpg',
+                'molotovtv': 'assets/platform-logos/molotovtv.jpg',
+                'disneyplus': 'assets/platform-logos/disneyplus.jpg',
+                'psnfa': 'assets/platform-logos/psnfa.jpg',
+                'xbox': 'assets/platform-logos/xbox.jpg',
+                'spotify': 'assets/platform-logos/spotify.jpg'
             }
 
             caption_text = (f"🎫 <b>{platform.capitalize()} Credentials</b>\n\n"
@@ -1412,15 +1423,16 @@ async def check_and_process_giveaways(context: ContextTypes.DEFAULT_TYPE):
 
                 # Platform images
                 platform_images = {
-                    'Netflix': 'attached_assets/platforms/netflix.png',
-                    'Crunchyroll': 'attached_assets/platforms/crunchyroll.png',
-                    'WWE': 'attached_assets/platforms/wwe.png',
-                    'ParamountPlus': 'attached_assets/platforms/paramountplus.png',
-                    'Dazn': 'attached_assets/platforms/dazn.png',
-                    'MolotovTV': 'attached_assets/platforms/molotov.png',
-                    'DisneyPlus': 'attached_assets/platforms/disneyplus.png',
-                    'PSNFA': 'attached_assets/platforms/psnfa.png',
-                    'Xbox': 'attached_assets/platforms/xbox.png'
+                    'Netflix': 'assets/platform-logos/netflix.jpg',
+                    'Crunchyroll': 'assets/platform-logos/crunchyroll.jpg',
+                    'WWE': 'assets/platform-logos/wwe.jpg',
+                    'ParamountPlus': 'assets/platform-logos/paramountplus.jpg',
+                    'Dazn': 'assets/platform-logos/dazn.jpg',
+                    'MolotovTV': 'assets/platform-logos/molotovtv.jpg',
+                    'DisneyPlus': 'assets/platform-logos/disneyplus.jpg',
+                    'PSNFA': 'assets/platform-logos/psnfa.jpg',
+                    'Xbox': 'assets/platform-logos/xbox.jpg',
+                    'Spotify': 'assets/platform-logos/spotify.jpg'
                 }
                 image_path = platform_images.get(platform)
                 project_root = get_project_root()
