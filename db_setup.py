@@ -7,6 +7,17 @@ from contextlib import contextmanager
 # Disable IPv6 for psycopg2 connections
 os.environ['PGHOST_RESOLVE_IPv6'] = '0'
 
+# Force IPv4 resolution
+import socket
+_original_getaddrinfo = socket.getaddrinfo
+
+def _getaddrinfo_ipv4_only(*args, **kwargs):
+    """Force IPv4 resolution"""
+    kwargs['family'] = socket.AF_INET
+    return _original_getaddrinfo(*args, **kwargs)
+
+socket.getaddrinfo = _getaddrinfo_ipv4_only
+
 # Database connection pool
 db_pool = None
 
@@ -21,39 +32,45 @@ def init_db_pool():
     from urllib.parse import urlparse
     parsed = urlparse(database_url)
     
-    # Build connection parameters - this forces psycopg2 to use the parameters
-    # instead of the URL, which can help with IPv6 issues
+    # Try to manually resolve to IPv4 first
+    import socket
+    ipv4_addr = None
+    try:
+        # Force IPv4 resolution
+        addr_info = socket.getaddrinfo(
+            parsed.hostname, 
+            parsed.port or 5432, 
+            socket.AF_INET,  # Force IPv4
+            socket.SOCK_STREAM
+        )
+        if addr_info:
+            ipv4_addr = addr_info[0][4][0]
+            print(f"✓ Resolved {parsed.hostname} to IPv4: {ipv4_addr}")
+    except Exception as e:
+        print(f"⚠ Could not resolve to IPv4: {e}")
+    
+    # Build connection parameters
     conn_params = {
         'dbname': parsed.path.lstrip('/'),
         'user': parsed.username,
         'password': parsed.password,
-        'host': parsed.hostname,
+        'host': ipv4_addr if ipv4_addr else parsed.hostname,
         'port': parsed.port or 5432,
         'sslmode': 'require',
-        'connect_timeout': 10,
-        # Force IPv4 if possible
-        'hostaddr': None  # Let psycopg2 resolve
+        'connect_timeout': 15,
     }
     
-    # Try to manually resolve to IPv4
-    import socket
     try:
-        # Get all addresses and filter for IPv4
-        addr_info = socket.getaddrinfo(parsed.hostname, parsed.port or 5432, socket.AF_INET, socket.SOCK_STREAM)
-        if addr_info:
-            ipv4_addr = addr_info[0][4][0]
-            conn_params['hostaddr'] = ipv4_addr
-            print(f"DEBUG: Resolved {parsed.hostname} to IPv4: {ipv4_addr}")
+        db_pool = pool.SimpleConnectionPool(
+            minconn=1,
+            maxconn=10,
+            **conn_params
+        )
+        print(f"✓ Database pool initialized successfully")
+        return db_pool
     except Exception as e:
-        print(f"DEBUG: Could not resolve to IPv4: {e}, using hostname")
-        del conn_params['hostaddr']
-    
-    db_pool = pool.SimpleConnectionPool(
-        minconn=1,
-        maxconn=10,
-        **conn_params
-    )
-    return db_pool
+        print(f"✗ Database pool initialization failed: {e}")
+        raise
 
 @contextmanager
 def get_db_connection():
