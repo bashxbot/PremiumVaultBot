@@ -1,0 +1,39 @@
+Deploy cancelled
+     ==> Deploying...
+==> Running 'python start.py'
+2025-10-07 14:11:45,297 - __main__ - INFO - 🚀 Starting Premium Vault - Bot & Admin Panel
+2025-10-07 14:11:45,391 - __main__ - ERROR - ❌ Database initialization failed: No module named 'psycopg2'
+2025-10-07 14:11:45,391 - __main__ - INFO - ⚠️ Continuing without database - please check DATABASE_URL
+2025-10-07 14:11:45,399 - __main__ - INFO - ✅ Flask admin panel thread started
+Exception in thread Thread-1 (run_flask):
+Traceback (most recent call last):
+  File "/opt/render/project/python/Python-3.10.0/lib/python3.10/threading.py", line 1009, in _bootstrap_inner
+    self.run()
+  File "/opt/render/project/python/Python-3.10.0/lib/python3.10/threading.py", line 946, in run
+    self._target(*self._args, **self._kwargs)
+  File "/opt/render/project/src/start.py", line 93, in run_flask
+    from api_server import app
+  File "/opt/render/project/src/api_server.py", line 8, in <module>
+    from db_setup import get_db_connection, init_db_pool, db_pool
+  File "/opt/render/project/src/db_setup.py", line 3, in <module>
+    import psycopg2
+ModuleNotFoundError: No module named 'psycopg2'
+Traceback (most recent call last):
+  File "/opt/render/project/src/start.py", line 118, in <module>
+    run_bot()
+  File "/opt/render/project/src/start.py", line 34, in run_bot
+    from admin import (admin_start, handle_admin_callback, handle_admin_message,
+  File "/opt/render/project/src/bot/admin.py", line 12, in <module>
+    from db_helpers import (
+  File "/opt/render/project/src/db_helpers.py", line 1, in <module>
+    from db_setup import get_db_connection
+  File "/opt/render/project/src/db_setup.py", line 3, in <module>
+    import psycopg2
+ModuleNotFoundError: No module named 'psycopg2'
+     ==> Exited with status 1
+     ==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
+==> Running 'python start.py'
+2025-10-07 14:12:01,244 - __main__ - INFO - 🚀 Starting Premium Vault - Bot & Admin Panel
+2025-10-07 14:12:01,254 - __main__ - ERROR - ❌ Database initialization failed: No module named 'psycopg2'
+2025-10-07 14:12:01,254 - __main__ - INFO - ⚠️ Continuing without database - please check DATABASE_URL
+2025-10-07 14:12:01,255 - __main__ - INFO - ✅ Flask admin panel thread started
