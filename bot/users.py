@@ -17,7 +17,7 @@ from db_helpers import (get_platforms, get_platform_by_name, get_key_by_code,
 # ==================== CONFIGURATION ====================
 # Set to True to enable 10-minute cooldown between key redemptions
 # Set to False to disable cooldown (useful for testing)
-REDEMPTION_COOLDOWN_ENABLED = False
+REDEMPTION_COOLDOWN_ENABLED = True
 # =======================================================
 
 # Setup logging
@@ -139,25 +139,26 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show main menu to user"""
     user = update.effective_user
 
-    keyboard = [
-        [
-            InlineKeyboardButton("🎁 Redeem Key",
-                                 callback_data="user_redeem_key")
-        ], [InlineKeyboardButton("📊 My Stats", callback_data="user_my_stats")],
-        [
-            InlineKeyboardButton("📢 Channel Portal",
-                                 url="https://t.me/accountvaultportal"),
-            InlineKeyboardButton("📢 Channel Main",
-                                 url="https://t.me/+RKjw0ypr_e9lZTI0")
-        ],
-        [
-            InlineKeyboardButton("📢 Channel Backup",
-                                 url="https://t.me/+yiYViAOknS9lZjlk"),
-            InlineKeyboardButton("📢 Channel Config",
-                                 url="https://t.me/+gxVbPeU842ZkNmU0")
-        ], [InlineKeyboardButton("❓ Help", callback_data="user_help")],
-        [InlineKeyboardButton("👨‍💻 Developer", callback_data="user_developer")]
-    ]
+    keyboard = [[
+        InlineKeyboardButton("🎁 Redeem Key", callback_data="user_redeem_key")
+    ], [InlineKeyboardButton("📊 My Stats", callback_data="user_my_stats")],
+                [
+                    InlineKeyboardButton(
+                        "📢 Channel Portal",
+                        url="https://t.me/accountvaultportal"),
+                    InlineKeyboardButton("📢 Channel Main",
+                                         url="https://t.me/+RKjw0ypr_e9lZTI0")
+                ],
+                [
+                    InlineKeyboardButton("📢 Channel Backup",
+                                         url="https://t.me/+yiYViAOknS9lZjlk"),
+                    InlineKeyboardButton("📢 Channel Config",
+                                         url="https://t.me/+gxVbPeU842ZkNmU0")
+                ], [InlineKeyboardButton("❓ Help", callback_data="user_help")],
+                [
+                    InlineKeyboardButton("👨‍💻 Developer",
+                                         callback_data="user_developer")
+                ]]
 
     # Check if there's an active giveaway
     with get_db_connection() as conn:
@@ -584,16 +585,19 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     # Get platform logo path - try multiple locations
     platform_lower = platform_name.lower()
     image_path = None
-    
+
     # Get bot directory (where this file is located)
     bot_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(bot_dir)
 
     # Try multiple paths in order of preference
     potential_paths = [
-        os.path.join(bot_dir, 'assets', f'{platform_lower}.png'),  # bot/assets (most reliable)
-        os.path.join(project_root, 'attached_assets', 'platforms', f'{platform_lower}.png'),
-        os.path.join(project_root, 'assets', 'platform-logos', f'{platform_lower}.jpg'),
+        os.path.join(bot_dir, 'assets',
+                     f'{platform_lower}.png'),  # bot/assets (most reliable)
+        os.path.join(project_root, 'attached_assets', 'platforms',
+                     f'{platform_lower}.png'),
+        os.path.join(project_root, 'assets', 'platform-logos',
+                     f'{platform_lower}.jpg'),
     ]
 
     for path in potential_paths:
@@ -601,9 +605,11 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
             image_path = path
             logger.info(f"Using platform logo at: {image_path}")
             break
-    
+
     if not image_path:
-        logger.warning(f"No valid image found for platform: {platform_name} (checked {len(potential_paths)} locations)")
+        logger.warning(
+            f"No valid image found for platform: {platform_name} (checked {len(potential_paths)} locations)"
+        )
 
     # NOW do database operations
     claim_credential(platform_name, credential['id'], user_id, username_str,
@@ -616,29 +622,23 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
         try:
             logger.info(f"Attempting to send photo from: {image_path}")
             with open(image_path, 'rb') as photo:
-                await update.message.reply_photo(
-                    photo=photo,
-                    caption=success_text,
-                    reply_markup=reply_markup,
-                    parse_mode='HTML'
-                )
+                await update.message.reply_photo(photo=photo,
+                                                 caption=success_text,
+                                                 reply_markup=reply_markup,
+                                                 parse_mode='HTML')
             logger.info("Photo sent successfully")
         except Exception as e:
             logger.error(f"Failed to send photo: {e}", exc_info=True)
             # Fallback to text message
-            await update.message.reply_text(
-                success_text,
-                reply_markup=reply_markup,
-                parse_mode='HTML'
-            )
+            await update.message.reply_text(success_text,
+                                            reply_markup=reply_markup,
+                                            parse_mode='HTML')
     else:
         # No image available, send text only
         logger.info("No image available, sending text message")
-        await update.message.reply_text(
-            success_text,
-            reply_markup=reply_markup,
-            parse_mode='HTML'
-        )
+        await update.message.reply_text(success_text,
+                                        reply_markup=reply_markup,
+                                        parse_mode='HTML')
 
     # Send admin notifications in background (don't wait for them)
     import asyncio
@@ -811,10 +811,11 @@ async def redeem_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='HTML')
 
 
-async def show_developer_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def show_developer_info(update: Update,
+                              context: ContextTypes.DEFAULT_TYPE):
     """Show developer information and contact button"""
     query = update.callback_query
-    
+
     try:
         await query.answer()
         logger.info("Developer button clicked")
@@ -830,22 +831,19 @@ async def show_developer_info(update: Update, context: ContextTypes.DEFAULT_TYPE
             "   • Modern web development\n"
             "   • Responsive design\n"
             "   • Full-stack solutions\n\n"
-            "✨ <i>Let's bring your ideas to life!</i>"
-        )
+            "✨ <i>Let's bring your ideas to life!</i>")
 
-        keyboard = [
-            [InlineKeyboardButton("✉️ Contact Me", url="https://t.me/BEASTSEC")],
-            [InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]
-        ]
+        keyboard = [[
+            InlineKeyboardButton("✉️ Contact Me", url="https://t.me/BEASTSEC")
+        ], [InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        await query.edit_message_text(
-            text=developer_text,
-            reply_markup=reply_markup,
-            parse_mode='HTML'
-        )
+        await query.edit_message_text(text=developer_text,
+                                      reply_markup=reply_markup,
+                                      parse_mode='HTML')
         logger.info("Developer info displayed successfully")
-        
+
     except Exception as e:
         logger.error(f"Error showing developer info: {e}", exc_info=True)
-        await query.answer("❌ An error occurred. Please try again.", show_alert=True)
+        await query.answer("❌ An error occurred. Please try again.",
+                           show_alert=True)
