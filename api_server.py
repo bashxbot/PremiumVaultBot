@@ -459,6 +459,39 @@ def edit_credential(platform, cred_id):
 
     return jsonify({'success': False, 'message': 'Failed to update credential'}), 500
 
+@app.route('/api/credentials/<platform>/claimed', methods=['GET'])
+@login_required
+def get_claimed_credentials(platform):
+    if platform not in PLATFORMS:
+        return jsonify({'success': False, 'message': 'Invalid platform'}), 400
+
+    try:
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(f"""
+                SELECT id, email, claimed_by, claimed_by_username, claimed_by_name, claimed_at
+                FROM {platform}_credentials
+                WHERE status = 'claimed' AND claimed_by IS NOT NULL
+                ORDER BY claimed_at DESC
+            """)
+            rows = cur.fetchall()
+            cur.close()
+
+            claimed = []
+            for row in rows:
+                claimed.append({
+                    'id': row[0],
+                    'email': row[1],
+                    'claimed_by': row[2],
+                    'claimed_by_username': row[3] if row[3] else 'N/A',
+                    'claimed_by_name': row[4] if row[4] else 'N/A',
+                    'claimed_at': row[5].isoformat() if row[5] else None
+                })
+
+        return jsonify({'success': True, 'claimed': claimed})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @app.route('/api/credentials/<platform>/delete-all', methods=['DELETE'])
 @login_required
 def delete_all_credentials(platform):

@@ -4,6 +4,7 @@ import { SiNetflix, SiCrunchyroll } from 'react-icons/si'
 import { GiBoxingGlove } from 'react-icons/gi'
 import { FaStar, FaTv, FaGamepad, FaXbox } from 'react-icons/fa'
 import { MdSportsKabaddi } from 'react-icons/md'
+import ClaimedCredentials from './ClaimedCredentials'
 import './Credentials.css'
 
 function Credentials({ platform, refreshStats }) {
@@ -274,6 +275,8 @@ function Credentials({ platform, refreshStats }) {
           </div>
         </div>
       )}
+
+      <ClaimedCredentials platform={platform} />
     </div>
   )
 }
