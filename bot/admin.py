@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import os
 import random
 import string
@@ -5,12 +6,13 @@ import logging
 from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
+from telegram.error import TelegramError
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db_helpers import (
-    get_platforms, get_platform_by_name, add_key, get_keys_by_platform,
-    get_or_create_user, get_user_stats, is_user_banned, ban_user,
-    get_db_connection
+    get_platforms, add_key, get_keys_by_platform, get_key_by_code,
+    delete_keys_by_platform, is_user_banned as db_is_user_banned,
+    ban_user as db_ban_user, get_db_connection, get_all_admin_telegram_ids
 )
 
 logger = logging.getLogger(__name__)
@@ -29,33 +31,11 @@ if _admin_ids_str:
     ]
     ADMIN_IDS.extend([id for id in additional_admins if id not in ADMIN_IDS])
 
-# Available platforms
-PLATFORMS = ['Netflix', 'Crunchyroll', 'WWE', 'ParamountPlus', 'Dazn', 'MolotovTV', 'DisneyPlus', 'PSNFA', 'Xbox']
+# Available platforms - This is now fetched from the database in db_helpers
 
-
-def ensure_data_files():
-    """Compatibility function - no longer needed with PostgreSQL"""
-    pass
-
-
-def get_admin_telegram_ids():
-    """Get all admin Telegram IDs from PostgreSQL"""
-    try:
-        with get_db_connection() as conn:
-            cur = conn.cursor()
-            cur.execute("""
-                SELECT telegram_user_id FROM admin_credentials 
-                WHERE telegram_user_id IS NOT NULL AND telegram_user_id != ''
-            """)
-            telegram_ids = []
-            for row in cur.fetchall():
-                if row[0] and str(row[0]).isdigit():
-                    telegram_ids.append(int(row[0]))
-            cur.close()
-            return telegram_ids
-    except:
-        return []
-
+def get_admin_ids_from_db():
+    """Get admin IDs from database"""
+    return get_all_admin_telegram_ids()
 
 def is_admin(user_id):
     """Check if user is admin"""
@@ -64,12 +44,11 @@ def is_admin(user_id):
         return True
 
     # Check admin credentials file for telegram IDs
-    telegram_admin_ids = get_admin_telegram_ids()
+    telegram_admin_ids = get_admin_ids_from_db()
     if user_id in telegram_admin_ids:
         return True
 
     return False
-
 
 def generate_key_code(platform):
     """Generate a unique key code"""
@@ -79,7 +58,6 @@ def generate_key_code(platform):
         for _ in range(3)
     ]
     return f"{prefix}-{'-'.join(parts)}"
-
 
 async def admin_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show admin main menu"""
@@ -140,23 +118,13 @@ async def admin_generate_keys_platform(update: Update,
     query = update.callback_query
     await query.answer()
 
+    platforms = get_platforms()
     keyboard = []
-    for platform in PLATFORMS:
-        emoji = {
-            "Netflix": "🎬",
-            "Crunchyroll": "🍜",
-            "WWE": "🤼",
-            "ParamountPlus": "⭐",
-            "Dazn": "🥊",
-            "MolotovTV": "📺",
-            "DisneyPlus": "🏰",
-            "PSNFA": "🎮",
-            "Xbox": "🎯"
-        }.get(platform, "📦")
+    for platform in platforms:
         keyboard.append([
             InlineKeyboardButton(
-                f"{emoji} {platform}",
-                callback_data=f"admin_gen_platform_{platform}")
+                f"{platform['emoji']} {platform['name']}",
+                callback_data=f"admin_gen_platform_{platform['name'].lower()}")
         ])
     keyboard.append(
         [InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")])
@@ -176,23 +144,13 @@ async def admin_generate_credentials_platform(
     query = update.callback_query
     await query.answer()
 
+    platforms = get_platforms()
     keyboard = []
-    for platform in PLATFORMS:
-        emoji = {
-            "Netflix": "🎬",
-            "Crunchyroll": "🍜",
-            "WWE": "🤼",
-            "ParamountPlus": "⭐",
-            "Dazn": "🥊",
-            "MolotovTV": "📺",
-            "DisneyPlus": "🏰",
-            "PSNFA": "🎮",
-            "Xbox": "🎯"
-        }.get(platform, "📦")
+    for platform in platforms:
         keyboard.append([
             InlineKeyboardButton(
-                f"{emoji} {platform}",
-                callback_data=f"admin_cred_platform_{platform}")
+                f"{platform['emoji']} {platform['name']}",
+                callback_data=f"admin_cred_platform_{platform['name'].lower()}")
         ])
     keyboard.append(
         [InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")])
@@ -215,8 +173,6 @@ async def handle_admin_callback(update: Update,
     if not is_admin(user_id):
         await query.answer("❌ You are not authorized!", show_alert=True)
         return
-
-    ensure_data_files()
 
     data = query.data
 
@@ -241,7 +197,7 @@ async def handle_admin_callback(update: Update,
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await query.edit_message_text(
-            text=f"🎫 <b>Platform: {platform}</b>\n\n"
+            text=f"🎫 <b>Platform: {platform.capitalize()}</b>\n\n"
             f"How many credentials do you want to generate?\n\n"
             f"📝 Please send a number (e.g., 5):",
             reply_markup=reply_markup,
@@ -259,7 +215,7 @@ async def handle_admin_callback(update: Update,
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await query.edit_message_text(
-            text=f"🔢 <b>Platform: {platform}</b>\n\n"
+            text=f"🔢 <b>Platform: {platform.capitalize()}</b>\n\n"
             f"How many keys do you want to generate?\n\n"
             f"📝 Please send a number (e.g., 5):",
             reply_markup=reply_markup,
@@ -301,25 +257,111 @@ async def handle_admin_callback(update: Update,
         await stop_giveaway(update, context)
 
     elif data == "admin_revoke_key":
-        await revoke_key_platform(update, context)
+        context.user_data['revoke_step'] = 'platform'
+        await query.answer()
+        platforms = get_platforms()
+        keyboard = []
+        for platform in platforms:
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"{platform['emoji']} {platform['name']}",
+                    callback_data=f"admin_revoke_platform_{platform['name'].lower()}")
+            ])
+        keyboard.append(
+            [InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")])
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(
+            text="❌ <b>Revoke Key</b>\n\nSelect the platform:",
+            reply_markup=reply_markup,
+            parse_mode='HTML')
 
     elif data.startswith("admin_revoke_platform_"):
         platform = data.replace("admin_revoke_platform_", "")
-        await revoke_key_options(update, context, platform)
+        context.user_data['revoke_platform'] = platform
+        context.user_data['revoke_step'] = 'option'
+        await query.answer()
+
+        keyboard = [
+            [
+                InlineKeyboardButton(
+                    "🔙 Last Generated Key",
+                    callback_data=f"admin_revoke_option_last_{platform}")
+            ],
+            [
+                InlineKeyboardButton("🗑️ All Keys",
+                                     callback_data=f"admin_revoke_option_all_{platform}")
+            ],
+            [
+                InlineKeyboardButton("✅ Claimed Keys",
+                                     callback_data=f"admin_revoke_option_claimed_{platform}")
+            ],
+            [
+                InlineKeyboardButton("🔙 Back to Revoke Platform",
+                                     callback_data="admin_revoke_key")
+            ],
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="admin_main")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await query.edit_message_text(
+            text=f"❌ <b>Revoke {platform.capitalize()} Keys</b>\n\nSelect an option:",
+            reply_markup=reply_markup,
+            parse_mode='HTML')
 
     elif data.startswith("admin_revoke_option_"):
         parts = data.replace("admin_revoke_option_", "").split("_", 1)
         option = parts[0]
         platform = parts[1]
-        await revoke_key_execute(update, context, platform, option)
+        context.user_data['revoke_option'] = option
+        context.user_data['revoke_platform'] = platform
+        context.user_data['revoke_step'] = 'confirm'
+        await query.answer()
 
-    elif data.startswith("admin_revoke_confirm_"):
-        action = data.replace("admin_revoke_confirm_", "")
-        if action == "yes":
-            await execute_revoke(update, context)
-        else:
-            await query.answer("❌ Revoke cancelled")
-            await admin_start(update, context)
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT id FROM platforms WHERE name ILIKE %s", (platform,))
+            platform_result = cur.fetchone()
+            if not platform_result:
+                await query.edit_message_text("❌ Platform not found!", parse_mode='HTML')
+                return
+            platform_id = platform_result[0]
+            
+            count = 0
+            if option == "last":
+                cur.execute("""
+                    SELECT COUNT(*) FROM keys WHERE platform_id = %s
+                    ORDER BY created_at DESC LIMIT 1
+                """, (platform_id,))
+                count = cur.fetchone()[0]
+            elif option == "all":
+                cur.execute("SELECT COUNT(*) FROM keys WHERE platform_id = %s", (platform_id,))
+                count = cur.fetchone()[0]
+            elif option == "claimed":
+                cur.execute("SELECT COUNT(*) FROM keys WHERE platform_id = %s AND status = 'used'", (platform_id,))
+                count = cur.fetchone()[0]
+            cur.close()
+
+        text = f"⚠️ <b>Confirm Revocation</b>\n\nAre you sure you want to revoke {count} key(s) for {platform.capitalize()} ({option})?\n\n📊 This action cannot be undone."
+        
+        keyboard = [[
+            InlineKeyboardButton("✅ Yes, Revoke",
+                                 callback_data="admin_revoke_confirm_yes")
+        ],
+                    [
+                        InlineKeyboardButton(
+                            "❌ Cancel", callback_data="admin_revoke_confirm_no")
+                    ]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await query.edit_message_text(text=text,
+                                      reply_markup=reply_markup,
+                                      parse_mode='HTML')
+
+    elif data == "admin_revoke_confirm_yes":
+        await execute_revoke(update, context)
+    elif data == "admin_revoke_confirm_no":
+        await query.answer("❌ Revoke cancelled")
+        await admin_start(update, context)
 
     elif data == "admin_broadcast":
         context.user_data['broadcast_step'] = 'message'
@@ -384,12 +426,14 @@ async def show_bot_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for row in cur.fetchall():
             platform, status, count = row
             if platform not in platform_stats:
-                platform_stats[platform] = {'total': 0, 'active': 0, 'used': 0}
+                platform_stats[platform] = {'total': 0, 'active': 0, 'used': 0, 'expired': 0}
             platform_stats[platform]['total'] += count
             if status == 'active':
                 platform_stats[platform]['active'] = count
             elif status == 'used':
                 platform_stats[platform]['used'] = count
+            elif status == 'expired':
+                platform_stats[platform]['expired'] = count
         
         if platform_stats:
             stats_text += "📱 <b>Platform Breakdown:</b>\n"
@@ -405,7 +449,7 @@ async def show_bot_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "PSNFA": "🎮",
                     "Xbox": "🎯"
                 }.get(platform, "📦")
-                stats_text += f"{emoji} <b>{platform}:</b> {stats['total']} total, {stats['active']} active, {stats['used']} used\n"
+                stats_text += f"{emoji} <b>{platform}:</b> {stats['total']} total, {stats['active']} active, {stats['used']} used, {stats['expired']} expired\n"
         
         cur.close()
 
@@ -424,23 +468,13 @@ async def list_all_keys(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
+    platforms = get_platforms()
     keyboard = []
-    for platform in PLATFORMS:
-        emoji = {
-            "Netflix": "🎬",
-            "Crunchyroll": "🍜",
-            "WWE": "🤼",
-            "ParamountPlus": "⭐",
-            "Dazn": "🥊",
-            "MolotovTV": "📺",
-            "DisneyPlus": "🏰",
-            "PSNFA": "🎮",
-            "Xbox": "🎯"
-        }.get(platform, "📦")
+    for platform in platforms:
         keyboard.append([
             InlineKeyboardButton(
-                f"{emoji} {platform} Keys",
-                callback_data=f"admin_list_platform_{platform}")
+                f"{platform['emoji']} {platform['name']} Keys",
+                callback_data=f"admin_list_platform_{platform['name'].lower()}")
         ])
     keyboard.append(
         [InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")])
@@ -460,10 +494,11 @@ async def list_keys_by_platform(update: Update,
     query = update.callback_query
     await query.answer()
 
-    platform_keys = get_keys_by_platform(platform)
+    platform_name = get_platform_display_name(platform)
+    platform_keys = get_keys_by_platform(platform_name)
 
     if not platform_keys:
-        text = f"📋 <b>{platform} Keys</b>\n\nNo keys found for this platform."
+        text = f"📋 <b>{platform_name} Keys</b>\n\nNo keys found for this platform."
     else:
         # Calculate statistics
         total_keys = len(platform_keys)
@@ -474,34 +509,41 @@ async def list_keys_by_platform(update: Update,
         # Count total unique users who redeemed
         all_users = set()
         for key in platform_keys:
-            all_users.update(key.get('used_by', []))
+            if key.get('used_by'):
+                all_users.update(key.get('used_by', []))
         total_users = len(all_users)
 
-        text = (f"📋 <b>{platform} Keys Statistics</b>\n\n"
+        text = (f"📋 <b>{platform_name} Keys Statistics</b>\n\n"
                 f"📊 <b>Total Keys:</b> {total_keys}\n"
                 f"✅ <b>Active:</b> {active_keys}\n"
                 f"🎯 <b>Used:</b> {used_keys}\n"
                 f"⏰ <b>Expired:</b> {expired_keys}\n"
-                f"👥 <b>Total Users:</b> {total_users}\n\n"
+                f"👥 <b>Total Users Redeemed:</b> {total_users}\n\n"
                 f"🔑 <b>Key List:</b>\n")
 
-        for key in platform_keys[:15]:  # Show first 15 keys
+        for key_data in platform_keys[:15]:  # Show first 15 keys
+            key_code = key_data['key']
+            status = key_data.get('status', 'active')
             status_emoji = {
                 "active": "✅",
                 "used": "🎯",
                 "expired": "⏰"
-            }.get(key.get('status', 'active'), "❓")
-            remaining = key.get('remaining_uses', 0)
-            total_uses = key.get('uses', 1)
-            created_at = key.get('created_at', 'Unknown')[:10]
-            redeemed_count = len(key.get('used_by', []))
+            }.get(status, "❓")
+            remaining = key_data.get('remaining_uses', 0)
+            total_uses = key_data.get('uses', 1)
+            created_at = key_data.get('created_at', 'Unknown')[:10]
+            redeemed_count = len(key_data.get('used_by', []))
 
-            text += f"\n{status_emoji} <code>{key['key']}</code>\n"
+            text += f"\n{status_emoji} <code>{key_code}</code>\n"
             text += f"   📅 Created: {created_at}\n"
             text += f"   🎯 Uses: {redeemed_count}/{total_uses} (Remaining: {remaining})\n"
 
-            if key.get('redeemed_at'):
-                text += f"   ⏰ Last Redeemed: {key.get('redeemed_at')[:19]}\n"
+            if key_data.get('redeemed_at'):
+                text += f"   ⏰ Last Redeemed: {key_data.get('redeemed_at')[:19]}\n"
+            if key_data.get('used_by'):
+                last_user = key_data['used_by'][-1]
+                text += f"   👤 Last User: {last_user}\n"
+
 
         if len(platform_keys) > 15:
             text += f"\n... and {len(platform_keys) - 15} more keys"
@@ -558,23 +600,13 @@ async def start_giveaway_platform(update: Update,
     query = update.callback_query
     await query.answer()
 
+    platforms = get_platforms()
     keyboard = []
-    for platform in PLATFORMS:
-        emoji = {
-            "Netflix": "🎬",
-            "Crunchyroll": "🍜",
-            "WWE": "🤼",
-            "ParamountPlus": "⭐",
-            "Dazn": "🥊",
-            "MolotovTV": "📺",
-            "DisneyPlus": "🏰",
-            "PSNFA": "🎮",
-            "Xbox": "🎯"
-        }.get(platform, "📦")
+    for platform in platforms:
         keyboard.append([
             InlineKeyboardButton(
-                f"{emoji} {platform}",
-                callback_data=f"admin_giveaway_platform_{platform}")
+                f"{platform['emoji']} {platform['name']}",
+                callback_data=f"admin_giveaway_platform_{platform['name'].lower()}")
         ])
     keyboard.append(
         [InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")])
@@ -602,16 +634,16 @@ async def start_giveaway_duration(update: Update,
                                  callback_data="admin_giveaway_duration_1m")
         ],
         [
+            InlineKeyboardButton("⏱️ 5 Minutes",
+                                 callback_data="admin_giveaway_duration_5m")
+        ],
+        [
             InlineKeyboardButton("⏱️ 30 Minutes",
                                  callback_data="admin_giveaway_duration_30m")
         ],
         [
             InlineKeyboardButton("⏱️ 1 Hour",
                                  callback_data="admin_giveaway_duration_1h")
-        ],
-        [
-            InlineKeyboardButton("⏱️ 2 Hours",
-                                 callback_data="admin_giveaway_duration_2h")
         ],
         [
             InlineKeyboardButton("⏱️ 3 Hours",
@@ -635,7 +667,7 @@ async def start_giveaway_duration(update: Update,
 
     await query.edit_message_text(
         text=
-        f"🎁 <b>Start Giveaway - {platform}</b>\n\nSelect the giveaway duration:",
+        f"🎁 <b>Start Giveaway - {platform.capitalize()}</b>\n\nSelect the giveaway duration:",
         reply_markup=reply_markup,
         parse_mode='HTML')
 
@@ -708,23 +740,13 @@ async def revoke_key_platform(update: Update,
     query = update.callback_query
     await query.answer()
 
+    platforms = get_platforms()
     keyboard = []
-    for platform in PLATFORMS:
-        emoji = {
-            "Netflix": "🎬",
-            "Crunchyroll": "🍜",
-            "WWE": "🤼",
-            "ParamountPlus": "⭐",
-            "Dazn": "🥊",
-            "MolotovTV": "📺",
-            "DisneyPlus": "🏰",
-            "PSNFA": "🎮",
-            "Xbox": "🎯"
-        }.get(platform, "📦")
+    for platform in platforms:
         keyboard.append([
             InlineKeyboardButton(
-                f"{emoji} {platform}",
-                callback_data=f"admin_revoke_platform_{platform}")
+                f"{platform['emoji']} {platform['name']}",
+                callback_data=f"admin_revoke_platform_{platform['name'].lower()}")
         ])
     keyboard.append(
         [InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")])
@@ -760,114 +782,62 @@ async def revoke_key_options(update: Update,
                 callback_data=f"admin_revoke_option_claimed_{platform}")
         ],
         [
-            InlineKeyboardButton("🔙 Back to Revoke",
+            InlineKeyboardButton("🔙 Back to Revoke Platform",
                                  callback_data="admin_revoke_key")
         ], [InlineKeyboardButton("🏠 Main Menu", callback_data="admin_main")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     context.user_data['revoke_platform'] = platform
-
+    
     await query.edit_message_text(
-        text=f"❌ <b>Revoke {platform} Keys</b>\n\nSelect an option:",
+        text=f"❌ <b>Revoke {platform.capitalize()} Keys</b>\n\nSelect an option:",
         reply_markup=reply_markup,
         parse_mode='HTML')
 
 
 async def revoke_key_execute(update: Update,
-                             context: ContextTypes.DEFAULT_TYPE, platform,
-                             option):
+                             context: ContextTypes.DEFAULT_TYPE):
     """Execute key revocation"""
-    query = update.callback_query
-    await query.answer()
-
-    context.user_data['revoke_platform'] = platform
-    context.user_data['revoke_option'] = option
-
-    with get_db_connection() as conn:
-        cur = conn.cursor()
-        
-        # Get platform ID
-        cur.execute("SELECT id FROM platforms WHERE name = %s", (platform,))
-        platform_result = cur.fetchone()
-        if not platform_result:
-            await query.edit_message_text("❌ Platform not found!", parse_mode='HTML')
-            return
-        
-        platform_id = platform_result[0]
-        
-        if option == "last":
-            count = 1
-            text = f"⚠️ <b>Confirm Revocation</b>\n\nAre you sure you want to revoke the last generated {platform} key?\n\n📊 This will revoke {count} key(s)."
-        elif option == "all":
-            cur.execute("SELECT COUNT(*) FROM keys WHERE platform_id = %s", (platform_id,))
-            count = cur.fetchone()[0]
-            text = f"⚠️ <b>Confirm Revocation</b>\n\nAre you sure you want to revoke ALL {platform} keys?\n\n📊 This will revoke {count} key(s)."
-        elif option == "claimed":
-            cur.execute("SELECT COUNT(*) FROM keys WHERE platform_id = %s AND status = 'used'", (platform_id,))
-            count = cur.fetchone()[0]
-            text = f"⚠️ <b>Confirm Revocation</b>\n\nAre you sure you want to revoke all claimed ({platform}) keys?\n\n📊 This will revoke {count} key(s)."
-        
-        cur.close()
-
-    keyboard = [[
-        InlineKeyboardButton("✅ Yes, Revoke",
-                             callback_data="admin_revoke_confirm_yes")
-    ],
-                [
-                    InlineKeyboardButton(
-                        "❌ Cancel", callback_data="admin_revoke_confirm_no")
-                ]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await query.edit_message_text(text=text,
-                                  reply_markup=reply_markup,
-                                  parse_mode='HTML')
-
-
-async def execute_revoke(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Execute the actual revocation"""
     query = update.callback_query
     await query.answer()
 
     platform = context.user_data.get('revoke_platform')
     option = context.user_data.get('revoke_option')
 
+    if not platform or not option:
+        await query.edit_message_text("❌ Error: Missing revoke details. Please start over.", parse_mode='HTML')
+        return
+
     with get_db_connection() as conn:
         cur = conn.cursor()
         
-        # Get platform ID
-        cur.execute("SELECT id FROM platforms WHERE name = %s", (platform,))
+        cur.execute("SELECT id FROM platforms WHERE name ILIKE %s", (platform,))
         platform_result = cur.fetchone()
         if not platform_result:
             await query.edit_message_text("❌ Platform not found!", parse_mode='HTML')
             return
         
         platform_id = platform_result[0]
-        revoked_count = 0
-
+        
+        count = 0
         if option == "last":
-            # Delete last key for platform
             cur.execute("""
-                DELETE FROM keys WHERE id = (
-                    SELECT id FROM keys WHERE platform_id = %s 
-                    ORDER BY created_at DESC LIMIT 1
-                )
+                DELETE FROM keys 
+                WHERE id = (SELECT id FROM keys WHERE platform_id = %s ORDER BY created_at DESC LIMIT 1)
             """, (platform_id,))
-            revoked_count = cur.rowcount
+            count = cur.rowcount
         elif option == "all":
-            # Delete all keys for platform
             cur.execute("DELETE FROM keys WHERE platform_id = %s", (platform_id,))
-            revoked_count = cur.rowcount
+            count = cur.rowcount
         elif option == "claimed":
-            # Delete all used keys for platform
             cur.execute("DELETE FROM keys WHERE platform_id = %s AND status = 'used'", (platform_id,))
-            revoked_count = cur.rowcount
+            count = cur.rowcount
         
         cur.close()
 
-    text = ("✅ <b>Keys Revoked</b>\n\n"
-            f"Successfully revoked {revoked_count} {platform} key(s)!")
+    text = (f"✅ <b>Keys Revoked</b>\n\n"
+            f"Successfully revoked {count} {platform.capitalize()} key(s)!")
 
     keyboard = [[
         InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")
@@ -878,12 +848,9 @@ async def execute_revoke(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                   reply_markup=reply_markup,
                                   parse_mode='HTML')
 
-
 def get_project_root():
     """Get the project root directory (parent of bot folder)"""
-    import os
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
 
 async def handle_admin_message(update: Update,
                                context: ContextTypes.DEFAULT_TYPE):
@@ -892,8 +859,6 @@ async def handle_admin_message(update: Update,
 
     if not is_admin(user_id):
         return
-
-    ensure_data_files()
 
     # Handle key generation steps
     if context.user_data.get('gen_step') == 'count':
@@ -958,18 +923,22 @@ async def handle_admin_message(update: Update,
         count = context.user_data.get('gen_count')
         uses = context.user_data.get('gen_uses')
 
-        if not platform or not count or not uses:
+        if not platform or count is None or uses is None:
             keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await update.message.reply_text("❌ Error: Missing data. Please start over.", reply_markup=reply_markup, parse_mode='HTML')
             context.user_data.pop('gen_step', None)
+            context.user_data.pop('gen_platform', None)
+            context.user_data.pop('gen_count', None)
+            context.user_data.pop('gen_uses', None)
             return
 
+        platform_name = get_platform_display_name(platform)
         generated_keys = []
 
         for _ in range(count):
-            key_code = generate_key_code(platform)
-            add_key(key_code, platform, uses, account_text)
+            key_code = generate_key_code(platform_name)
+            add_key(key_code, platform_name, uses, account_text)
             generated_keys.append(key_code)
 
         # Clear user data
@@ -1000,7 +969,7 @@ async def handle_admin_message(update: Update,
             'xbox': 'attached_assets/platforms/xbox.png'
         }
 
-        caption_text = (f"🔑 <b>Generated Keys for {platform.title()}</b>\n\n"
+        caption_text = (f"🔑 <b>Generated Keys for {platform_name}</b>\n\n"
                         f"📊 Created {count} key(s):\n"
                         f"{keys_text}\n\n"
                         f"✅ Keys saved to database!\n"
@@ -1032,23 +1001,15 @@ async def handle_admin_message(update: Update,
     elif context.user_data.get('giveaway_step') == 'winners':
         try:
             winners = int(update.message.text)
-            duration = context.user_data.get('giveaway_duration')
+            duration_str = context.user_data.get('giveaway_duration')
             platform = context.user_data.get('giveaway_platform', 'Unknown')
 
-            # Parse duration
-            duration_map = {
-                '1m': 1,
-                '30m': 30,
-                '1h': 60,
-                '2h': 120,
-                '3h': 180,
-                '6h': 360,
-                '12h': 720,
-                '24h': 1440
-            }
+            if not duration_str or not platform:
+                 await update.message.reply_text("❌ Error: Missing giveaway details. Please start over.", parse_mode='HTML')
+                 return
 
-            duration_minutes = duration_map.get(duration, 60)
-            end_time = datetime.now() + timedelta(minutes=duration_minutes)
+            duration_seconds = parse_duration(duration_str)
+            end_time = datetime.now() + timedelta(seconds=duration_seconds)
 
             # Create giveaway in database
             with get_db_connection() as conn:
@@ -1058,7 +1019,7 @@ async def handle_admin_message(update: Update,
                 cur.execute("UPDATE giveaways SET active = false WHERE active = true")
                 
                 # Get platform ID
-                cur.execute("SELECT id FROM platforms WHERE name = %s", (platform,))
+                cur.execute("SELECT id FROM platforms WHERE name ILIKE %s", (platform,))
                 platform_result = cur.fetchone()
                 if platform_result:
                     platform_id = platform_result[0]
@@ -1067,7 +1028,7 @@ async def handle_admin_message(update: Update,
                     cur.execute("""
                         INSERT INTO giveaways (platform_id, active, duration, winners, end_time)
                         VALUES (%s, %s, %s, %s, %s)
-                    """, (platform_id, True, duration, winners, end_time))
+                    """, (platform_id, True, duration_str, winners, end_time))
                 
                 cur.close()
 
@@ -1083,8 +1044,8 @@ async def handle_admin_message(update: Update,
 
             await update.message.reply_text(
                 f"🎁 <b>Giveaway Started!</b>\n\n"
-                f"🎮 <b>Platform:</b> {platform}\n"
-                f"⏱️ <b>Duration:</b> {duration}\n"
+                f"🎮 <b>Platform:</b> {platform.capitalize()}\n"
+                f"⏱️ <b>Duration:</b> {duration_str}\n"
                 f"🏆 <b>Winners:</b> {winners}\n"
                 f"⏰ <b>Ends at:</b> {end_time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
                 f"✅ Users can now participate!",
@@ -1099,6 +1060,10 @@ async def handle_admin_message(update: Update,
             await update.message.reply_text("❌ Please send a valid number!",
                                             reply_markup=reply_markup,
                                             parse_mode='HTML')
+        except Exception as e:
+            logger.error(f"Error setting up giveaway: {e}")
+            await update.message.reply_text(f"❌ An error occurred: {e}", parse_mode='HTML')
+
 
     # Handle credential generation
     elif context.user_data.get('cred_step') == 'count':
@@ -1108,10 +1073,10 @@ async def handle_admin_message(update: Update,
 
             # Use project root for credentials
             project_root = get_project_root()
-            credential_file = os.path.join(project_root, 'credentials',
+            credential_file_path = os.path.join(project_root, 'credentials',
                                            f'{platform}.json')
 
-            if not os.path.exists(credential_file):
+            if not os.path.exists(credential_file_path):
                 keyboard = [[
                     InlineKeyboardButton("🔙 Back to Main",
                                          callback_data="admin_main")
@@ -1119,7 +1084,7 @@ async def handle_admin_message(update: Update,
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 await update.message.reply_text(
                     f"❌ <b>Credential File Missing</b>\n\n"
-                    f"The file {credential_file} doesn't exist.\n\n"
+                    f"The file `{credential_file_path}` doesn't exist.\n\n"
                     f"Please create it first with some credentials!",
                     reply_markup=reply_markup,
                     parse_mode='HTML')
@@ -1127,7 +1092,8 @@ async def handle_admin_message(update: Update,
                 context.user_data.pop('cred_platform', None)
                 return
 
-            credentials = load_json(credential_file)
+            with open(credential_file_path, 'r') as f:
+                credentials = json.load(f)
 
             # Separate credentials by status: active first, then claimed, then used/others
             active_creds = [
@@ -1206,7 +1172,7 @@ async def handle_admin_message(update: Update,
                 'xbox': 'attached_assets/platforms/xbox.png'
             }
 
-            caption_text = (f"🎫 <b>{platform.title()} Credentials</b>\n\n"
+            caption_text = (f"🎫 <b>{platform.capitalize()} Credentials</b>\n\n"
                             f"📊 Retrieved {count} credential(s):\n"
                             f"{creds_text}{warning_text}\n\n"
                             f"💡 <i>Tap to copy!</i>")
@@ -1241,6 +1207,10 @@ async def handle_admin_message(update: Update,
             await update.message.reply_text("❌ Please send a valid number!",
                                             reply_markup=reply_markup,
                                             parse_mode='HTML')
+        except Exception as e:
+             logger.error(f"Error handling credentials: {e}")
+             await update.message.reply_text(f"❌ An error occurred: {e}", parse_mode='HTML')
+
 
     # Handle broadcast
     elif context.user_data.get('broadcast_step') == 'message':
@@ -1302,14 +1272,14 @@ async def handle_admin_message(update: Update,
                     parse_mode='HTML')
                 return
 
-        keyboard = [[
-            InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")
-        ]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        if not is_user_banned(user_identifier):
-            ban_user(user_identifier)
+        if not db_is_user_banned(user_identifier):
+            db_ban_user(user_identifier)
             context.user_data.pop('ban_step', None)
+
+            keyboard = [[
+                InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")
+            ]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
 
             await update.message.reply_text(
                 f"🚫 <b>User Banned</b>\n\n"
@@ -1317,6 +1287,10 @@ async def handle_admin_message(update: Update,
                 reply_markup=reply_markup,
                 parse_mode='HTML')
         else:
+            keyboard = [[
+                InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")
+            ]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
             await update.message.reply_text("❌ User is already banned!",
                                             reply_markup=reply_markup,
                                             parse_mode='HTML')
@@ -1328,120 +1302,147 @@ async def check_and_process_giveaways(context: ContextTypes.DEFAULT_TYPE):
         with get_db_connection() as conn:
             cur = conn.cursor()
             
-            # Get active giveaway
+            # Get active giveaway that has ended
             cur.execute("""
-                SELECT g.id, g.end_time, g.winners, p.name
+                SELECT g.id, g.winners, p.name
                 FROM giveaways g
                 JOIN platforms p ON g.platform_id = p.id
-                WHERE g.active = true
-                LIMIT 1
+                WHERE g.active = true AND g.end_time <= NOW()
             """)
-            result = cur.fetchone()
+            expired_giveaways = cur.fetchall()
             
-            if not result:
+            if not expired_giveaways:
                 return
-            
-            giveaway_id, end_time_str, num_winners, platform = result
-            
-            # Check if the giveaway has expired
-            if not end_time_str:
-                return
-            
-            end_time = end_time_str if isinstance(end_time_str, datetime) else datetime.fromisoformat(str(end_time_str))
-            
-            # If giveaway hasn't ended yet, return
-            if datetime.now() < end_time:
-                return
-            
-            # Giveaway has ended! Process winners
-            logger.info("Giveaway has ended. Processing winners...")
-            
-            # Get participants
-            cur.execute("""
-                SELECT user_id FROM giveaway_participants WHERE giveaway_id = %s
-            """, (giveaway_id,))
-            participants = [row[0] for row in cur.fetchall()]
-            
-            # If no participants, just deactivate
-            if not participants:
-                cur.execute("UPDATE giveaways SET active = false WHERE id = %s", (giveaway_id,))
-                logger.info("No participants in giveaway. Deactivating.")
-                return
-            
-            # Select random winners (don't select more winners than participants)
-            actual_winners = min(num_winners, len(participants))
-            winner_ids = random.sample(participants, actual_winners)
-            
-            logger.info(
-                f"Selected {actual_winners} winners from {len(participants)} participants"
-            )
 
-        # Platform images
-            platform_images = {
-                'Netflix': 'attached_assets/platforms/netflix.png',
-                'Crunchyroll': 'attached_assets/platforms/crunchyroll.png',
-                'WWE': 'attached_assets/platforms/wwe.png',
-                'ParamountPlus': 'attached_assets/platforms/paramountplus.png',
-                'Dazn': 'attached_assets/platforms/dazn.png',
-                'MolotovTV': 'attached_assets/platforms/molotov.png',
-                'DisneyPlus': 'attached_assets/platforms/disneyplus.png',
-                'PSNFA': 'attached_assets/platforms/psnfa.png',
-                'Xbox': 'attached_assets/platforms/xbox.png'
-            }
-
-            image_path = platform_images.get(platform)
-
-            # Generate and send keys to winners
-            keys_distributed = 0
-            for winner_id in winner_ids:
-                # Generate a new key for this winner
-                key_code = generate_key_code(platform)
-                account_text = f"{platform} Giveaway Prize"
-
-                # Add key to database
-                add_key(key_code, platform, 1, account_text, giveaway_generated=True, giveaway_winner=str(winner_id))
-
+            for giveaway_id, num_winners, platform in expired_giveaways:
+                # Get participants
+                cur.execute("""
+                    SELECT user_id FROM giveaway_participants WHERE giveaway_id = %s
+                """, (giveaway_id,))
+                participants = [row[0] for row in cur.fetchall()]
+                
+                # If no participants, just deactivate
+                if not participants:
+                    cur.execute("UPDATE giveaways SET active = false WHERE id = %s", (giveaway_id,))
+                    logger.info(f"Giveaway {giveaway_id} ({platform}): No participants. Deactivating.")
+                    continue
+                
+                # Select random winners (don't select more winners than participants)
+                actual_winners_count = min(num_winners, len(participants))
+                winner_ids = random.sample(participants, actual_winners_count)
+                
                 logger.info(
-                    f"Generated new key {key_code} for giveaway winner {winner_id}"
+                    f"Giveaway {giveaway_id} ({platform}): Selecting {actual_winners_count} winners from {len(participants)} participants."
                 )
 
-            # Create winner message
-                winner_text = (
-                    f"🎉 <b>Congratulations! You Won!</b> 🎉\n\n"
-                    f"🏆 You've been selected as a winner in the <b>{platform}</b> giveaway!\n\n"
-                    f"🎁 <b>Your Prize:</b> {account_text}\n"
-                    f"🔑 <b>Redemption Key:</b> <code>{key_code}</code>\n\n"
-                    f"📝 <b>How to Redeem:</b>\n"
-                    f"1️⃣ Use the /redeem command\n"
-                    f"2️⃣ Send your key: <code>{key_code}</code>\n"
-                    f"3️⃣ Get your account credentials!\n\n"
-                    f"💡 <i>Tap the key to copy it!</i>\n\n"
-                    f"💝 Thank you for participating in Premium Vault giveaways!")
+                # Platform images
+                platform_images = {
+                    'Netflix': 'attached_assets/platforms/netflix.png',
+                    'Crunchyroll': 'attached_assets/platforms/crunchyroll.png',
+                    'WWE': 'attached_assets/platforms/wwe.png',
+                    'ParamountPlus': 'attached_assets/platforms/paramountplus.png',
+                    'Dazn': 'attached_assets/platforms/dazn.png',
+                    'MolotovTV': 'attached_assets/platforms/molotov.png',
+                    'DisneyPlus': 'attached_assets/platforms/disneyplus.png',
+                    'PSNFA': 'attached_assets/platforms/psnfa.png',
+                    'Xbox': 'attached_assets/platforms/xbox.png'
+                }
+                image_path = platform_images.get(platform)
+                project_root = get_project_root()
+                if image_path:
+                    image_path = os.path.join(project_root, image_path)
 
-                # Send with platform image if available
-                try:
-                    if image_path and os.path.exists(image_path):
-                        with open(image_path, 'rb') as photo:
-                            await context.bot.send_photo(chat_id=int(winner_id),
-                                                         photo=photo,
-                                                         caption=winner_text,
-                                                         parse_mode='HTML')
-                    else:
-                        await context.bot.send_message(chat_id=int(winner_id),
-                                                       text=winner_text,
-                                                       parse_mode='HTML')
-                    keys_distributed += 1
-                    logger.info(f"Sent key to winner {winner_id}")
-                except Exception as e:
-                    logger.error(f"Failed to send key to winner {winner_id}: {e}")
+                # Generate and send keys to winners
+                keys_distributed = 0
+                for winner_id in winner_ids:
+                    # Generate a new key for this winner
+                    key_code = generate_key_code(platform)
+                    account_text = f"{platform} Giveaway Prize"
 
-            # Deactivate the giveaway
-            cur.execute("UPDATE giveaways SET active = false WHERE id = %s", (giveaway_id,))
+                    # Add key to database
+                    add_key(key_code, platform, 1, account_text, giveaway_generated=True, giveaway_winner=str(winner_id))
+
+                    logger.info(
+                        f"Generated new key {key_code} for giveaway winner {winner_id}"
+                    )
+
+                    # Create winner message
+                    winner_text = (
+                        f"🎉 <b>Congratulations! You Won!</b> 🎉\n\n"
+                        f"🏆 You've been selected as a winner in the <b>{platform}</b> giveaway!\n\n"
+                        f"🎁 <b>Your Prize:</b> {account_text}\n"
+                        f"🔑 <b>Redemption Key:</b> <code>{key_code}</code>\n\n"
+                        f"📝 <b>How to Redeem:</b>\n"
+                        f"1️⃣ Use the /redeem command\n"
+                        f"2️⃣ Send your key: <code>{key_code}</code>\n"
+                        f"3️⃣ Get your account credentials!\n\n"
+                        f"💡 <i>Tap the key to copy it!</i>\n\n"
+                        f"💝 Thank you for participating in Premium Vault giveaways!")
+
+                    # Send with platform image if available
+                    try:
+                        if image_path and os.path.exists(image_path):
+                            with open(image_path, 'rb') as photo:
+                                await context.bot.send_photo(chat_id=int(winner_id),
+                                                             photo=photo,
+                                                             caption=winner_text,
+                                                             parse_mode='HTML')
+                        else:
+                            await context.bot.send_message(chat_id=int(winner_id),
+                                                           text=winner_text,
+                                                           parse_mode='HTML')
+                        keys_distributed += 1
+                        logger.info(f"Sent key to winner {winner_id}")
+                    except Exception as e:
+                        logger.error(f"Failed to send key to winner {winner_id}: {e}")
+
+                # Deactivate the giveaway
+                cur.execute("UPDATE giveaways SET active = false WHERE id = %s", (giveaway_id,))
+
+                logger.info(
+                    f"Giveaway {giveaway_id} ({platform}) processing complete. Distributed {keys_distributed} keys to {len(winner_ids)} winners."
+                )
             cur.close()
-
-            logger.info(
-                f"Giveaway processing complete. Distributed {keys_distributed} keys to {len(winner_ids)} winners."
-            )
 
     except Exception as e:
         logger.error(f"Error in check_and_process_giveaways: {e}")
+
+def get_platform_display_name(platform):
+    """Get proper platform display name"""
+    platform_map = {
+        'netflix': 'Netflix',
+        'crunchyroll': 'Crunchyroll',
+        'wwe': 'WWE',
+        'paramountplus': 'ParamountPlus',
+        'dazn': 'Dazn',
+        'molotovtv': 'MolotovTV',
+        'disneyplus': 'DisneyPlus',
+        'psnfa': 'PSNFA',
+        'xbox': 'Xbox'
+    }
+    return platform_map.get(platform.lower(), platform.capitalize())
+
+def parse_duration(duration_str):
+    """Parse duration string to seconds"""
+    duration_str = duration_str.lower().strip()
+    if duration_str.endswith('s'):
+        return int(duration_str[:-1])
+    elif duration_str.endswith('m'):
+        return int(duration_str[:-1]) * 60
+    elif duration_str.endswith('h'):
+        return int(duration_str[:-1]) * 3600
+    elif duration_str.endswith('d'):
+        return int(duration_str[:-1]) * 86400
+    else:
+        try:
+            return int(duration_str) # Assume seconds if no unit
+        except ValueError:
+            return 0 # Default to 0 if invalid
+
+# Dummy function to satisfy linters if needed, actual implementation relies on get_db_connection
+def load_json(file_path):
+    """Placeholder for JSON loading, actual logic uses DB."""
+    print(f"Attempted to load JSON from {file_path}, but using DB instead.")
+    return [] # Return empty list as DB is used
+
+import json # Import json for credential handling
