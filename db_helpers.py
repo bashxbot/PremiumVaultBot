@@ -412,7 +412,7 @@ async def notify_admins_key_redeemed(bot, platform, user_id, username, full_name
                 parse_mode='HTML'
             )
         except Exception as e:
-            print(f"Failed to notify admin {admin_id}: {e}")in {admin_id}: {e}")
+            print(f"Failed to notify admin {admin_id}: {e}")
 
 async def notify_admins_credential_claimed(bot, platform, user_id, username, full_name, email):
     """Send notification to all admins when a credential is claimed"""
