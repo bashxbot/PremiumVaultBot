@@ -595,10 +595,24 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
         'xbox': 'assets/platform-logos/xbox.jpg',
         'spotify': 'assets/platform-logos/spotify.jpg'
     }
+    
     # Use lowercase for matching
-    image_path = platform_images.get(platform_name.lower())
-    if image_path:
-        image_path = os.path.join(project_root, image_path)
+    platform_lower = platform_name.lower()
+    image_path = None
+    
+    if platform_lower in platform_images:
+        image_path = os.path.join(project_root, platform_images[platform_lower])
+        logger.info(f"Looking for image at: {image_path}")
+        
+        # Check if image exists and is valid
+        if not os.path.exists(image_path):
+            logger.warning(f"Image not found at {image_path}")
+            image_path = None
+        elif os.path.getsize(image_path) == 0:
+            logger.warning(f"Image file is empty at {image_path}")
+            image_path = None
+    else:
+        logger.warning(f"No image configured for platform: {platform_name}")
 
     # NOW do database operations
     claim_credential(platform_name, credential['id'], user_id, username_str,
@@ -607,23 +621,33 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
                   full_name)
 
     # Send success message with platform logo immediately after DB operations
-    try:
-        if image_path and os.path.exists(image_path) and os.path.getsize(
-                image_path) > 0:
+    if image_path:
+        try:
+            logger.info(f"Attempting to send photo from: {image_path}")
             with open(image_path, 'rb') as photo:
-                await update.message.reply_photo(photo=photo,
-                                                 caption=success_text,
-                                                 reply_markup=reply_markup,
-                                                 parse_mode='HTML')
-        else:
-            await update.message.reply_text(success_text,
-                                            reply_markup=reply_markup,
-                                            parse_mode='HTML')
-    except Exception as e:
-        logger.error(f"Failed to send photo, sending text instead: {e}")
-        await update.message.reply_text(success_text,
-                                        reply_markup=reply_markup,
-                                        parse_mode='HTML')
+                await update.message.reply_photo(
+                    photo=photo,
+                    caption=success_text,
+                    reply_markup=reply_markup,
+                    parse_mode='HTML'
+                )
+            logger.info("Photo sent successfully")
+        except Exception as e:
+            logger.error(f"Failed to send photo: {e}", exc_info=True)
+            # Fallback to text message
+            await update.message.reply_text(
+                success_text,
+                reply_markup=reply_markup,
+                parse_mode='HTML'
+            )
+    else:
+        # No image available, send text only
+        logger.info("No image available, sending text message")
+        await update.message.reply_text(
+            success_text,
+            reply_markup=reply_markup,
+            parse_mode='HTML'
+        )
 
     # Send admin notifications in background (don't wait for them)
     import asyncio
