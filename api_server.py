@@ -443,7 +443,7 @@ def delete_credential(platform, cred_id):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
     
-    if db_delete_credential(cred_id):
+    if db_delete_credential(platform, cred_id):
         return jsonify({'success': True, 'message': 'Credential deleted successfully'})
     
     return jsonify({'success': False, 'message': 'Failed to delete credential'}), 500
@@ -459,7 +459,7 @@ def edit_credential(platform, cred_id):
     password = data.get('password')
     status = data.get('status')
     
-    if db_update_credential(cred_id, email, password, status):
+    if db_update_credential(platform, cred_id, email, password, status):
         return jsonify({'success': True, 'message': 'Credential updated successfully'})
     
     return jsonify({'success': False, 'message': 'Failed to update credential'}), 500

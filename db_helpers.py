@@ -4,58 +4,50 @@ from datetime import datetime
 import json
 import asyncio
 
+PLATFORMS = ['netflix', 'crunchyroll', 'wwe', 'paramountplus', 'dazn', 'molotovtv', 'disneyplus', 'psnfa', 'xbox']
+
 def get_platforms():
-    """Get all platforms"""
-    with get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT id, name, emoji FROM platforms ORDER BY name")
-        platforms = cur.fetchall()
-        cur.close()
-        return [{'id': p[0], 'name': p[1], 'emoji': p[2]} for p in platforms]
+    """Get all platform names"""
+    return [p for p in PLATFORMS]
 
 def get_platform_by_name(name):
-    """Get platform by name (case-insensitive)"""
-    with get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT id, name, emoji FROM platforms WHERE LOWER(name) = LOWER(%s)", (name,))
-        platform = cur.fetchone()
-        cur.close()
-        if platform:
-            return {'id': platform[0], 'name': platform[1], 'emoji': platform[2]}
-        return None
+    """Check if platform exists"""
+    platform_lower = name.lower()
+    if platform_lower in PLATFORMS:
+        return {'name': platform_lower}
+    return None
 
 def add_credential(platform_name, email, password, status='active'):
-    """Add a credential"""
-    platform = get_platform_by_name(platform_name)
-    if not platform:
+    """Add a credential to platform-specific table"""
+    platform_lower = platform_name.lower()
+    if platform_lower not in PLATFORMS:
         return False
     
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO credentials (platform_id, email, password, status)
-            VALUES (%s, %s, %s, %s)
+        cur.execute(f"""
+            INSERT INTO {platform_lower}_credentials (email, password, status)
+            VALUES (%s, %s, %s)
             RETURNING id
-        """, (platform['id'], email, password, status))
+        """, (email, password, status))
         cred_id = cur.fetchone()[0]
         cur.close()
         return cred_id
 
 def get_credentials_by_platform(platform_name):
-    """Get all credentials for a platform with claimer information"""
-    platform = get_platform_by_name(platform_name)
-    if not platform:
+    """Get all credentials for a platform from platform-specific table"""
+    platform_lower = platform_name.lower()
+    if platform_lower not in PLATFORMS:
         return []
     
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("""
+        cur.execute(f"""
             SELECT id, email, password, status, claimed_by, claimed_by_username, 
                    claimed_by_name, claimed_at, created_at
-            FROM credentials
-            WHERE platform_id = %s
+            FROM {platform_lower}_credentials
             ORDER BY created_at DESC
-        """, (platform['id'],))
+        """)
         credentials = cur.fetchall()
         cur.close()
         
@@ -71,8 +63,12 @@ def get_credentials_by_platform(platform_name):
             'created_at': c[8].isoformat() if c[8] else None
         } for c in credentials]
 
-def update_credential(cred_id, email=None, password=None, status=None):
-    """Update a credential"""
+def update_credential(platform_name, cred_id, email=None, password=None, status=None):
+    """Update a credential in platform-specific table"""
+    platform_lower = platform_name.lower()
+    if platform_lower not in PLATFORMS:
+        return False
+        
     with get_db_connection() as conn:
         cur = conn.cursor()
         updates = []
@@ -91,34 +87,38 @@ def update_credential(cred_id, email=None, password=None, status=None):
         updates.append("updated_at = CURRENT_TIMESTAMP")
         params.append(cred_id)
         
-        query = f"UPDATE credentials SET {', '.join(updates)} WHERE id = %s"
+        query = f"UPDATE {platform_lower}_credentials SET {', '.join(updates)} WHERE id = %s"
         cur.execute(query, params)
         cur.close()
         return True
 
-def delete_credential(cred_id):
-    """Delete a credential"""
+def delete_credential(platform_name, cred_id):
+    """Delete a credential from platform-specific table"""
+    platform_lower = platform_name.lower()
+    if platform_lower not in PLATFORMS:
+        return False
+        
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("DELETE FROM credentials WHERE id = %s", (cred_id,))
+        cur.execute(f"DELETE FROM {platform_lower}_credentials WHERE id = %s", (cred_id,))
         cur.close()
         return True
 
 def get_active_credential(platform_name):
-    """Get an active credential for a platform"""
-    platform = get_platform_by_name(platform_name)
-    if not platform:
+    """Get an active credential for a platform from platform-specific table"""
+    platform_lower = platform_name.lower()
+    if platform_lower not in PLATFORMS:
         return None
     
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("""
+        cur.execute(f"""
             SELECT id, email, password
-            FROM credentials
-            WHERE platform_id = %s AND status = 'active'
+            FROM {platform_lower}_credentials
+            WHERE status = 'active'
             ORDER BY created_at ASC
             LIMIT 1
-        """, (platform['id'],))
+        """)
         cred = cur.fetchone()
         cur.close()
         
@@ -126,12 +126,16 @@ def get_active_credential(platform_name):
             return {'id': cred[0], 'email': cred[1], 'password': cred[2]}
         return None
 
-def claim_credential(cred_id, user_id, username=None, full_name=None):
-    """Mark a credential as claimed with full user details"""
+def claim_credential(platform_name, cred_id, user_id, username=None, full_name=None):
+    """Mark a credential as claimed with full user details in platform-specific table"""
+    platform_lower = platform_name.lower()
+    if platform_lower not in PLATFORMS:
+        return False
+        
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("""
-            UPDATE credentials 
+        cur.execute(f"""
+            UPDATE {platform_lower}_credentials
             SET status = 'claimed', 
                 claimed_by = %s, 
                 claimed_by_username = %s,
@@ -143,67 +147,66 @@ def claim_credential(cred_id, user_id, username=None, full_name=None):
         return True
 
 def add_key(key_code, platform_name, uses, account_text, giveaway_generated=False, giveaway_winner=None):
-    """Add a key"""
-    platform = get_platform_by_name(platform_name)
-    if not platform:
+    """Add a key to platform-specific table"""
+    platform_lower = platform_name.lower()
+    if platform_lower not in PLATFORMS:
         return False
     
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO keys (key_code, platform_id, uses, remaining_uses, account_text, giveaway_generated, giveaway_winner)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        cur.execute(f"""
+            INSERT INTO {platform_lower}_keys (key_code, uses, remaining_uses, account_text, giveaway_generated, giveaway_winner)
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING id
-        """, (key_code, platform['id'], uses, uses, account_text, giveaway_generated, giveaway_winner))
+        """, (key_code, uses, uses, account_text, giveaway_generated, giveaway_winner))
         key_id = cur.fetchone()[0]
         cur.close()
         return key_id
 
 def get_key_by_code(key_code):
-    """Get a key by its code"""
-    with get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT k.id, k.key_code, p.name, k.uses, k.remaining_uses, k.account_text, k.status, 
-                   k.created_at, k.redeemed_at, k.giveaway_generated, k.giveaway_winner
-            FROM keys k
-            JOIN platforms p ON k.platform_id = p.id
-            WHERE k.key_code = %s
-        """, (key_code,))
-        key = cur.fetchone()
-        cur.close()
-        
-        if key:
-            return {
-                'id': key[0],
-                'key': key[1],
-                'platform': key[2],
-                'uses': key[3],
-                'remaining_uses': key[4],
-                'account_text': key[5],
-                'status': key[6],
-                'created_at': key[7].isoformat() if key[7] else None,
-                'redeemed_at': key[8].isoformat() if key[8] else None,
-                'giveaway_generated': key[9],
-                'giveaway_winner': key[10]
-            }
-        return None
+    """Get a key by its code - search across all platform tables"""
+    for platform in PLATFORMS:
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(f"""
+                SELECT id, key_code, uses, remaining_uses, account_text, status, 
+                       created_at, redeemed_at, giveaway_generated, giveaway_winner
+                FROM {platform}_keys
+                WHERE key_code = %s
+            """, (key_code,))
+            key = cur.fetchone()
+            cur.close()
+            
+            if key:
+                return {
+                    'id': key[0],
+                    'key': key[1],
+                    'platform': platform,
+                    'uses': key[2],
+                    'remaining_uses': key[3],
+                    'account_text': key[4],
+                    'status': key[5],
+                    'created_at': key[6].isoformat() if key[6] else None,
+                    'redeemed_at': key[7].isoformat() if key[7] else None,
+                    'giveaway_generated': key[8],
+                    'giveaway_winner': key[9]
+                }
+    return None
 
 def get_keys_by_platform(platform_name):
-    """Get all keys for a platform"""
-    platform = get_platform_by_name(platform_name)
-    if not platform:
+    """Get all keys for a platform from platform-specific table"""
+    platform_lower = platform_name.lower()
+    if platform_lower not in PLATFORMS:
         return []
     
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("""
-            SELECT k.id, k.key_code, k.uses, k.remaining_uses, k.account_text, k.status, 
-                   k.created_at, k.redeemed_at
-            FROM keys k
-            WHERE k.platform_id = %s
-            ORDER BY k.created_at DESC
-        """, (platform['id'],))
+        cur.execute(f"""
+            SELECT id, key_code, uses, remaining_uses, account_text, status, 
+                   created_at, redeemed_at
+            FROM {platform_lower}_keys
+            ORDER BY created_at DESC
+        """)
         keys = cur.fetchall()
         cur.close()
         
@@ -228,9 +231,9 @@ def get_keys_by_platform(platform_name):
             cur.execute("""
                 SELECT user_id, username, full_name, redeemed_at
                 FROM key_redemptions
-                WHERE key_id = %s
+                WHERE platform = %s AND key_code = %s
                 ORDER BY redeemed_at DESC
-            """, (k[0],))
+            """, (platform_lower, k[1]))
             redemptions = cur.fetchall()
             cur.close()
             
@@ -247,14 +250,26 @@ def get_keys_by_platform(platform_name):
         
         return result
 
-def redeem_key(key_id, user_id, username=None, full_name=None):
-    """Redeem a key with full user details"""
+def redeem_key(platform_name, key_id, user_id, username=None, full_name=None):
+    """Redeem a key with full user details from platform-specific table"""
+    platform_lower = platform_name.lower()
+    if platform_lower not in PLATFORMS:
+        return False
+        
     with get_db_connection() as conn:
         cur = conn.cursor()
         
+        # Get key_code first
+        cur.execute(f"SELECT key_code FROM {platform_lower}_keys WHERE id = %s", (key_id,))
+        key_row = cur.fetchone()
+        if not key_row:
+            cur.close()
+            return False
+        key_code = key_row[0]
+        
         # Update key
-        cur.execute("""
-            UPDATE keys 
+        cur.execute(f"""
+            UPDATE {platform_lower}_keys
             SET remaining_uses = remaining_uses - 1,
                 redeemed_at = CURRENT_TIMESTAMP,
                 status = CASE WHEN remaining_uses - 1 <= 0 THEN 'used' ELSE status END
@@ -263,25 +278,22 @@ def redeem_key(key_id, user_id, username=None, full_name=None):
         
         # Add redemption record with full user details
         cur.execute("""
-            INSERT INTO key_redemptions (key_id, user_id, username, full_name)
-            VALUES (%s, %s, %s, %s)
-        """, (key_id, user_id, username, full_name))
+            INSERT INTO key_redemptions (platform, key_code, user_id, username, full_name)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (platform_lower, key_code, user_id, username, full_name))
         
         cur.close()
         return True
 
 def delete_keys_by_platform(platform_name):
-    """Delete all keys for a platform"""
-    platform = get_platform_by_name(platform_name)
-    if not platform:
+    """Delete all keys for a platform from platform-specific table"""
+    platform_lower = platform_name.lower()
+    if platform_lower not in PLATFORMS:
         return False
     
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("""
-            DELETE FROM keys
-            WHERE platform_id = %s
-        """, (platform['id'],))
+        cur.execute(f"DELETE FROM {platform_lower}_keys")
         cur.close()
         return True
 
@@ -344,14 +356,12 @@ def get_user_stats(user_id):
         if not user:
             return None
         
-        # Get redeemed keys
+        # Get redeemed keys from the new key_redemptions table
         cur.execute("""
-            SELECT k.key_code, p.name, kr.redeemed_at
-            FROM key_redemptions kr
-            JOIN keys k ON kr.key_id = k.id
-            JOIN platforms p ON k.platform_id = p.id
-            WHERE kr.user_id = %s
-            ORDER BY kr.redeemed_at DESC
+            SELECT key_code, platform, redeemed_at
+            FROM key_redemptions
+            WHERE user_id = %s
+            ORDER BY redeemed_at DESC
         """, (str(user_id),))
         redemptions = cur.fetchall()
         cur.close()
