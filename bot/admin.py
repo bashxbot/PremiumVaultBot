@@ -323,25 +323,16 @@ async def handle_admin_callback(update: Update,
 
         with get_db_connection() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT id FROM platforms WHERE name ILIKE %s", (platform,))
-            platform_result = cur.fetchone()
-            if not platform_result:
-                await query.edit_message_text("❌ Platform not found!", parse_mode='HTML')
-                return
-            platform_id = platform_result[0]
             
             count = 0
             if option == "last":
-                cur.execute("""
-                    SELECT COUNT(*) FROM keys WHERE platform_id = %s
-                    ORDER BY created_at DESC LIMIT 1
-                """, (platform_id,))
+                cur.execute(f"SELECT COUNT(*) FROM {platform}_keys ORDER BY created_at DESC LIMIT 1")
                 count = cur.fetchone()[0]
             elif option == "all":
-                cur.execute("SELECT COUNT(*) FROM keys WHERE platform_id = %s", (platform_id,))
+                cur.execute(f"SELECT COUNT(*) FROM {platform}_keys")
                 count = cur.fetchone()[0]
             elif option == "claimed":
-                cur.execute("SELECT COUNT(*) FROM keys WHERE platform_id = %s AND status = 'used'", (platform_id,))
+                cur.execute(f"SELECT COUNT(*) FROM {platform}_keys WHERE status = 'used'")
                 count = cur.fetchone()[0]
             cur.close()
 
@@ -394,18 +385,42 @@ async def show_bot_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     with get_db_connection() as conn:
         cur = conn.cursor()
         
-        # Get key statistics
-        cur.execute("SELECT COUNT(*) FROM keys")
-        total_keys = cur.fetchone()[0]
+        total_keys = 0
+        active_keys = 0
+        used_keys = 0
+        expired_keys = 0
+        platform_stats = {}
         
-        cur.execute("SELECT COUNT(*) FROM keys WHERE status = 'active'")
-        active_keys = cur.fetchone()[0]
-        
-        cur.execute("SELECT COUNT(*) FROM keys WHERE status = 'used'")
-        used_keys = cur.fetchone()[0]
-        
-        cur.execute("SELECT COUNT(*) FROM keys WHERE status = 'expired'")
-        expired_keys = cur.fetchone()[0]
+        platforms = get_platforms()
+        for platform_data in platforms:
+            platform = platform_data['name']
+            emoji = platform_data['emoji']
+            
+            cur.execute(f"SELECT COUNT(*) FROM {platform}_keys")
+            platform_total = cur.fetchone()[0]
+            
+            cur.execute(f"SELECT COUNT(*) FROM {platform}_keys WHERE status = 'active'")
+            platform_active = cur.fetchone()[0]
+            
+            cur.execute(f"SELECT COUNT(*) FROM {platform}_keys WHERE status = 'used'")
+            platform_used = cur.fetchone()[0]
+            
+            cur.execute(f"SELECT COUNT(*) FROM {platform}_keys WHERE status = 'expired'")
+            platform_expired = cur.fetchone()[0]
+            
+            total_keys += platform_total
+            active_keys += platform_active
+            used_keys += platform_used
+            expired_keys += platform_expired
+            
+            if platform_total > 0:
+                platform_stats[platform] = {
+                    'emoji': emoji,
+                    'total': platform_total,
+                    'active': platform_active,
+                    'used': platform_used,
+                    'expired': platform_expired
+                }
         
         # Get total users
         cur.execute("SELECT COUNT(*) FROM users")
@@ -418,42 +433,10 @@ async def show_bot_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
                       f"🎯 <b>Used Keys:</b> {used_keys}\n"
                       f"⏰ <b>Expired Keys:</b> {expired_keys}\n\n")
         
-        # Platform breakdown
-        cur.execute("""
-            SELECT p.name, k.status, COUNT(*) 
-            FROM keys k 
-            JOIN platforms p ON k.platform_id = p.id 
-            GROUP BY p.name, k.status
-        """)
-        
-        platform_stats = {}
-        for row in cur.fetchall():
-            platform, status, count = row
-            if platform not in platform_stats:
-                platform_stats[platform] = {'total': 0, 'active': 0, 'used': 0, 'expired': 0}
-            platform_stats[platform]['total'] += count
-            if status == 'active':
-                platform_stats[platform]['active'] = count
-            elif status == 'used':
-                platform_stats[platform]['used'] = count
-            elif status == 'expired':
-                platform_stats[platform]['expired'] = count
-        
         if platform_stats:
             stats_text += "📱 <b>Platform Breakdown:</b>\n"
             for platform, stats in platform_stats.items():
-                emoji = {
-                    "Netflix": "🎬",
-                    "Crunchyroll": "🍜",
-                    "WWE": "🤼",
-                    "ParamountPlus": "⭐",
-                    "Dazn": "🥊",
-                    "MolotovTV": "📺",
-                    "DisneyPlus": "🏰",
-                    "PSNFA": "🎮",
-                    "Xbox": "🎯"
-                }.get(platform, "📦")
-                stats_text += f"{emoji} <b>{platform}:</b> {stats['total']} total, {stats['active']} active, {stats['used']} used, {stats['expired']} expired\n"
+                stats_text += f"{stats['emoji']} <b>{platform.capitalize()}:</b> {stats['total']} total, {stats['active']} active, {stats['used']} used, {stats['expired']} expired\n"
         
         cur.close()
 
@@ -577,19 +560,26 @@ async def clear_expired_keys(update: Update,
     query = update.callback_query
     await query.answer()
 
+    removed_count = 0
+    remaining_count = 0
+
     with get_db_connection() as conn:
         cur = conn.cursor()
         
-        # Count expired keys
-        cur.execute("SELECT COUNT(*) FROM keys WHERE status = 'expired'")
-        removed_count = cur.fetchone()[0]
-        
-        # Delete expired keys
-        cur.execute("DELETE FROM keys WHERE status = 'expired'")
-        
-        # Count remaining keys
-        cur.execute("SELECT COUNT(*) FROM keys")
-        remaining_count = cur.fetchone()[0]
+        platforms = get_platforms()
+        for platform_data in platforms:
+            platform = platform_data['name']
+            
+            # Count and delete expired keys for each platform
+            cur.execute(f"SELECT COUNT(*) FROM {platform}_keys WHERE status = 'expired'")
+            platform_expired = cur.fetchone()[0]
+            removed_count += platform_expired
+            
+            cur.execute(f"DELETE FROM {platform}_keys WHERE status = 'expired'")
+            
+            cur.execute(f"SELECT COUNT(*) FROM {platform}_keys")
+            platform_remaining = cur.fetchone()[0]
+            remaining_count += platform_remaining
         
         cur.close()
 
@@ -825,26 +815,18 @@ async def revoke_key_execute(update: Update,
     with get_db_connection() as conn:
         cur = conn.cursor()
         
-        cur.execute("SELECT id FROM platforms WHERE name ILIKE %s", (platform,))
-        platform_result = cur.fetchone()
-        if not platform_result:
-            await query.edit_message_text("❌ Platform not found!", parse_mode='HTML')
-            return
-        
-        platform_id = platform_result[0]
-        
         count = 0
         if option == "last":
-            cur.execute("""
-                DELETE FROM keys 
-                WHERE id = (SELECT id FROM keys WHERE platform_id = %s ORDER BY created_at DESC LIMIT 1)
-            """, (platform_id,))
+            cur.execute(f"""
+                DELETE FROM {platform}_keys 
+                WHERE id = (SELECT id FROM {platform}_keys ORDER BY created_at DESC LIMIT 1)
+            """)
             count = cur.rowcount
         elif option == "all":
-            cur.execute("DELETE FROM keys WHERE platform_id = %s", (platform_id,))
+            cur.execute(f"DELETE FROM {platform}_keys")
             count = cur.rowcount
         elif option == "claimed":
-            cur.execute("DELETE FROM keys WHERE platform_id = %s AND status = 'used'", (platform_id,))
+            cur.execute(f"DELETE FROM {platform}_keys WHERE status = 'used'")
             count = cur.rowcount
         
         cur.close()
