@@ -385,7 +385,24 @@ def get_all_admin_telegram_ids():
 
 async def notify_admins_key_redeemed(bot, platform, user_id, username, full_name, key_code):
     """Send notification to all admins when a key is redeemed"""
+    import os
+    
+    # Get admin IDs from database
     admin_ids = get_all_admin_telegram_ids()
+    
+    # Add static admin and environment variable admins
+    STATIC_ADMIN_ID = 6562270244
+    if STATIC_ADMIN_ID not in admin_ids:
+        admin_ids.append(STATIC_ADMIN_ID)
+    
+    # Add admins from environment variable
+    _admin_ids_str = os.getenv('ADMIN_IDS', '')
+    if _admin_ids_str:
+        for id_str in _admin_ids_str.split(','):
+            if id_str.strip() and id_str.strip().isdigit():
+                admin_id = int(id_str.strip())
+                if admin_id not in admin_ids:
+                    admin_ids.append(admin_id)
     
     if not admin_ids:
         return
@@ -416,7 +433,24 @@ async def notify_admins_key_redeemed(bot, platform, user_id, username, full_name
 
 async def notify_admins_credential_claimed(bot, platform, user_id, username, full_name, email):
     """Send notification to all admins when a credential is claimed"""
+    import os
+    
+    # Get admin IDs from database
     admin_ids = get_all_admin_telegram_ids()
+    
+    # Add static admin and environment variable admins
+    STATIC_ADMIN_ID = 6562270244
+    if STATIC_ADMIN_ID not in admin_ids:
+        admin_ids.append(STATIC_ADMIN_ID)
+    
+    # Add admins from environment variable
+    _admin_ids_str = os.getenv('ADMIN_IDS', '')
+    if _admin_ids_str:
+        for id_str in _admin_ids_str.split(','):
+            if id_str.strip() and id_str.strip().isdigit():
+                admin_id = int(id_str.strip())
+                if admin_id not in admin_ids:
+                    admin_ids.append(admin_id)
     
     if not admin_ids:
         return
