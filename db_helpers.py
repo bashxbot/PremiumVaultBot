@@ -6,9 +6,21 @@ import asyncio
 
 PLATFORMS = ['netflix', 'crunchyroll', 'wwe', 'paramountplus', 'dazn', 'molotovtv', 'disneyplus', 'psnfa', 'xbox']
 
+PLATFORM_DATA = [
+    {'name': 'netflix', 'emoji': '🎬'},
+    {'name': 'crunchyroll', 'emoji': '🍜'},
+    {'name': 'wwe', 'emoji': '🤼'},
+    {'name': 'paramountplus', 'emoji': '⭐'},
+    {'name': 'dazn', 'emoji': '🥊'},
+    {'name': 'molotovtv', 'emoji': '📺'},
+    {'name': 'disneyplus', 'emoji': '🏰'},
+    {'name': 'psnfa', 'emoji': '🎮'},
+    {'name': 'xbox', 'emoji': '🎯'}
+]
+
 def get_platforms():
-    """Get all platform names"""
-    return [p for p in PLATFORMS]
+    """Get all platform names with emoji"""
+    return PLATFORM_DATA
 
 def get_platform_by_name(name):
     """Check if platform exists"""
