@@ -529,11 +529,7 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     platform_name = key_found.get('platform', 'Unknown')
     account_text = key_found.get('account_text', 'Premium Account')
 
-    # Claim credential and redeem key atomically
-    claim_credential(platform_name, credential['id'], user_id, username_str, full_name)
-    db_redeem_key(platform_name, key_found['id'], user_id, username_str, full_name)
-
-    # Prepare success message
+    # Prepare success message and image BEFORE database operations
     success_text = (
         "🎉 <b>Key Redeemed Successfully!</b> 🎉\n\n"
         f"🎁 <b>Platform:</b> {platform_name}\n"
@@ -552,45 +548,61 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Get platform logo
+    # Get platform logo path
     project_root = get_project_root()
     platform_images = {
-        'Netflix': 'bot/assets/netflix.png',
-        'Crunchyroll': 'bot/assets/crunchyroll.png',
-        'WWE': 'bot/assets/wwe.png',
-        'ParamountPlus': 'bot/assets/paramountplus.png',
-        'Dazn': 'bot/assets/dazn.png',
-        'MolotovTV': 'bot/assets/molotovtv.png',
-        'DisneyPlus': 'bot/assets/disneyplus.png',
-        'PSNFA': 'bot/assets/psnfa.png',
-        'Xbox': 'bot/assets/xbox.png',
-        'Spotify': 'bot/assets/spotify.png'
+        'Netflix': 'assets/platform-logos/netflix.jpg',
+        'Crunchyroll': 'assets/platform-logos/crunchyroll.jpg',
+        'WWE': 'assets/platform-logos/wwe.jpg',
+        'ParamountPlus': 'assets/platform-logos/paramountplus.jpg',
+        'Dazn': 'assets/platform-logos/dazn.jpg',
+        'MolotovTV': 'assets/platform-logos/molotovtv.jpg',
+        'DisneyPlus': 'assets/platform-logos/disneyplus.jpg',
+        'PSNFA': 'assets/platform-logos/psnfa.jpg',
+        'Xbox': 'assets/platform-logos/xbox.jpg',
+        'Spotify': 'assets/platform-logos/spotify.jpg'
     }
     image_path = platform_images.get(platform_name)
     if image_path:
         image_path = os.path.join(project_root, image_path)
+    
+    # Open image file before database operations to fail fast if image is missing
+    photo_file = None
+    if image_path and os.path.exists(image_path) and os.path.getsize(image_path) > 0:
+        try:
+            photo_file = open(image_path, 'rb')
+        except Exception as e:
+            logger.error(f"Failed to open image: {e}")
+            photo_file = None
 
-    # Send success message with credential
+    # NOW do database operations
+    claim_credential(platform_name, credential['id'], user_id, username_str, full_name)
+    db_redeem_key(platform_name, key_found['id'], user_id, username_str, full_name)
+
+    # Send success message immediately after DB operations
     try:
-        if image_path and os.path.exists(image_path) and os.path.getsize(image_path) > 0:
-            with open(image_path, 'rb') as photo:
-                await update.message.reply_photo(photo=photo,
-                                                 caption=success_text,
-                                                 reply_markup=reply_markup,
-                                                 parse_mode='HTML')
+        if photo_file:
+            await update.message.reply_photo(photo=photo_file,
+                                             caption=success_text,
+                                             reply_markup=reply_markup,
+                                             parse_mode='HTML')
+            photo_file.close()
         else:
             await update.message.reply_text(success_text,
                                             reply_markup=reply_markup,
                                             parse_mode='HTML')
     except Exception as e:
-        logger.error(f"Failed to send image, sending text instead: {e}")
+        logger.error(f"Failed to send photo, sending text instead: {e}")
+        if photo_file:
+            photo_file.close()
         await update.message.reply_text(success_text,
                                         reply_markup=reply_markup,
                                         parse_mode='HTML')
 
-    # Send admin notifications immediately after user receives credential
-    try:
-        await notify_admins_key_redeemed(
+    # Send admin notifications in background (don't wait for them)
+    import asyncio
+    asyncio.create_task(
+        notify_admins_key_redeemed(
             context.bot,
             platform_name,
             user_id,
@@ -598,9 +610,7 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
             full_name,
             key_code
         )
-        logger.info(f"Admin notification sent for key redemption: {key_code} by user {user_id}")
-    except Exception as e:
-        logger.error(f"Failed to send admin notifications: {e}")
+    )
 
 
 async def participate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
