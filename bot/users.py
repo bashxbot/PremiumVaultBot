@@ -238,8 +238,8 @@ async def handle_user_callback(update: Update,
     elif data == "user_help":
         await show_help(update, context)
 
-    elif data == "user_join_giveaway":
-        await join_giveaway(update, context)
+    elif data == "user_developer":
+        await show_developer_info(update, context)
 
     else:
         await query.answer("❌ Unknown action!", show_alert=True)
@@ -585,11 +585,11 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     project_root = get_project_root()
     platform_lower = platform_name.lower()
     image_path = None
-    
+
     # Try PNG first (from attached_assets)
     png_path = os.path.join(project_root, 'attached_assets', 'platforms', f'{platform_lower}.png')
     jpg_path = os.path.join(project_root, 'assets', 'platform-logos', f'{platform_lower}.jpg')
-    
+
     if os.path.exists(png_path) and os.path.getsize(png_path) > 0:
         image_path = png_path
         logger.info(f"Using PNG image at: {image_path}")
@@ -803,3 +803,23 @@ async def redeem_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "📝 Example: <code>/redeem NETFLIX-A2D8-FA2F-VV82</code>",
             reply_markup=reply_markup,
             parse_mode='HTML')
+
+
+async def show_developer_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show developer information and contact button"""
+    query = update.callback_query
+    await query.answer()
+
+    developer_text = (
+        "If you want to make your own Telegram bots or Websites, you can contact me."
+    )
+
+    keyboard = [
+        [InlineKeyboardButton("📞 Contact Me", url="https://t.me/BEASTSEC")],
+        [InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await query.edit_message_text(text=developer_text,
+                                  reply_markup=reply_markup,
+                                  parse_mode='HTML')
