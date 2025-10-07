@@ -36,7 +36,9 @@ def run_bot():
     from users import (user_start, handle_user_callback, handle_user_message,
                       redeem_command, participate_command)
     
-    BOT_TOKEN = os.getenv('BOT_TOKEN', '7941709895:AAH4jPLL6FRxEqo3v0Ai4lKa6huWu1trpYU')
+    BOT_TOKEN = os.getenv('BOT_TOKEN')
+    if not BOT_TOKEN:
+        raise ValueError("BOT_TOKEN environment variable is required")
     
     async def start_command(update: Update, context):
         user_id = update.effective_user.id
