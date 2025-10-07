@@ -1,4 +1,3 @@
-
 from db_setup import get_db_connection
 from datetime import datetime
 import json
@@ -34,7 +33,7 @@ def add_credential(platform_name, email, password, status='active'):
     platform_lower = platform_name.lower()
     if platform_lower not in PLATFORMS:
         return False
-    
+
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute(f"""
@@ -51,7 +50,7 @@ def get_credentials_by_platform(platform_name):
     platform_lower = platform_name.lower()
     if platform_lower not in PLATFORMS:
         return []
-    
+
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute(f"""
@@ -62,7 +61,7 @@ def get_credentials_by_platform(platform_name):
         """)
         credentials = cur.fetchall()
         cur.close()
-        
+
         return [{
             'id': c[0],
             'email': c[1],
@@ -80,12 +79,12 @@ def update_credential(platform_name, cred_id, email=None, password=None, status=
     platform_lower = platform_name.lower()
     if platform_lower not in PLATFORMS:
         return False
-        
+
     with get_db_connection() as conn:
         cur = conn.cursor()
         updates = []
         params = []
-        
+
         if email:
             updates.append("email = %s")
             params.append(email)
@@ -95,10 +94,10 @@ def update_credential(platform_name, cred_id, email=None, password=None, status=
         if status:
             updates.append("status = %s")
             params.append(status)
-        
+
         updates.append("updated_at = CURRENT_TIMESTAMP")
         params.append(cred_id)
-        
+
         query = f"UPDATE {platform_lower}_credentials SET {', '.join(updates)} WHERE id = %s"
         cur.execute(query, params)
         cur.close()
@@ -109,7 +108,7 @@ def delete_credential(platform_name, cred_id):
     platform_lower = platform_name.lower()
     if platform_lower not in PLATFORMS:
         return False
-        
+
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute(f"DELETE FROM {platform_lower}_credentials WHERE id = %s", (cred_id,))
@@ -121,7 +120,7 @@ def get_active_credential(platform_name):
     platform_lower = platform_name.lower()
     if platform_lower not in PLATFORMS:
         return None
-    
+
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute(f"""
@@ -133,7 +132,7 @@ def get_active_credential(platform_name):
         """)
         cred = cur.fetchone()
         cur.close()
-        
+
         if cred:
             return {'id': cred[0], 'email': cred[1], 'password': cred[2]}
         return None
@@ -143,7 +142,7 @@ def claim_credential(platform_name, cred_id, user_id, username=None, full_name=N
     platform_lower = platform_name.lower()
     if platform_lower not in PLATFORMS:
         return False
-        
+
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute(f"""
@@ -163,7 +162,7 @@ def add_key(key_code, platform_name, uses, account_text, giveaway_generated=Fals
     platform_lower = platform_name.lower()
     if platform_lower not in PLATFORMS:
         return False
-    
+
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute(f"""
@@ -188,7 +187,7 @@ def get_key_by_code(key_code):
             """, (key_code,))
             key = cur.fetchone()
             cur.close()
-            
+
             if key:
                 return {
                     'id': key[0],
@@ -210,7 +209,7 @@ def get_keys_by_platform(platform_name):
     platform_lower = platform_name.lower()
     if platform_lower not in PLATFORMS:
         return []
-    
+
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute(f"""
@@ -221,7 +220,7 @@ def get_keys_by_platform(platform_name):
         """)
         keys = cur.fetchall()
         cur.close()
-        
+
         result = []
         for k in keys:
             key_data = {
@@ -237,18 +236,19 @@ def get_keys_by_platform(platform_name):
                 'used_by': [],
                 'redeemed_by': []
             }
-            
-            # Get redemption info with full user details
-            cur = conn.cursor()
-            cur.execute("""
-                SELECT user_id, username, full_name, redeemed_at
-                FROM key_redemptions
-                WHERE platform = %s AND key_code = %s
-                ORDER BY redeemed_at DESC
-            """, (platform_lower, k[1]))
-            redemptions = cur.fetchall()
-            cur.close()
-            
+
+            # Get redemption info with full user details using a new cursor
+            with get_db_connection() as conn2:
+                cur2 = conn2.cursor()
+                cur2.execute("""
+                    SELECT user_id, username, full_name, redeemed_at
+                    FROM key_redemptions
+                    WHERE platform = %s AND key_code = %s
+                    ORDER BY redeemed_at DESC
+                """, (platform_lower, k[1]))
+                redemptions = cur2.fetchall()
+                cur2.close()
+
             for r in redemptions:
                 key_data['used_by'].append(r[0])
                 key_data['redeemed_by'].append({
@@ -257,9 +257,9 @@ def get_keys_by_platform(platform_name):
                     'full_name': r[2],
                     'redeemed_at': r[3].isoformat() if r[3] else None
                 })
-            
+
             result.append(key_data)
-        
+
         return result
 
 def redeem_key(platform_name, key_id, user_id, username=None, full_name=None):
@@ -267,10 +267,10 @@ def redeem_key(platform_name, key_id, user_id, username=None, full_name=None):
     platform_lower = platform_name.lower()
     if platform_lower not in PLATFORMS:
         return False
-        
+
     with get_db_connection() as conn:
         cur = conn.cursor()
-        
+
         # Get key_code first
         cur.execute(f"SELECT key_code FROM {platform_lower}_keys WHERE id = %s", (key_id,))
         key_row = cur.fetchone()
@@ -278,7 +278,7 @@ def redeem_key(platform_name, key_id, user_id, username=None, full_name=None):
             cur.close()
             return False
         key_code = key_row[0]
-        
+
         # Update key
         cur.execute(f"""
             UPDATE {platform_lower}_keys
@@ -287,13 +287,13 @@ def redeem_key(platform_name, key_id, user_id, username=None, full_name=None):
                 status = CASE WHEN remaining_uses - 1 <= 0 THEN 'used' ELSE status END
             WHERE id = %s
         """, (key_id,))
-        
+
         # Add redemption record with full user details
         cur.execute("""
             INSERT INTO key_redemptions (platform, key_code, user_id, username, full_name)
             VALUES (%s, %s, %s, %s, %s)
         """, (platform_lower, key_code, user_id, username, full_name))
-        
+
         cur.close()
         return True
 
@@ -302,7 +302,7 @@ def delete_keys_by_platform(platform_name):
     platform_lower = platform_name.lower()
     if platform_lower not in PLATFORMS:
         return False
-    
+
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute(f"DELETE FROM {platform_lower}_keys")
@@ -323,7 +323,7 @@ def is_user_banned(user_id, username=None):
                 SELECT COUNT(*) FROM banned_users 
                 WHERE user_identifier = %s
             """, (str(user_id),))
-        
+
         count = cur.fetchone()[0]
         cur.close()
         return count > 0
@@ -358,16 +358,16 @@ def get_user_stats(user_id):
     """Get user statistics"""
     with get_db_connection() as conn:
         cur = conn.cursor()
-        
+
         # Get user info
         cur.execute("""
             SELECT joined_at FROM users WHERE user_id = %s
         """, (str(user_id),))
         user = cur.fetchone()
-        
+
         if not user:
             return None
-        
+
         # Get redeemed keys from the new key_redemptions table
         cur.execute("""
             SELECT key_code, platform, redeemed_at
@@ -377,7 +377,7 @@ def get_user_stats(user_id):
         """, (str(user_id),))
         redemptions = cur.fetchall()
         cur.close()
-        
+
         return {
             'joined_at': user[0].isoformat() if user[0] else None,
             'redeemed_keys': [{
@@ -398,7 +398,7 @@ def get_all_admin_telegram_ids():
         """)
         results = cur.fetchall()
         cur.close()
-        
+
         telegram_ids = []
         for row in results:
             if row[0] and str(row[0]).isdigit():
@@ -408,15 +408,15 @@ def get_all_admin_telegram_ids():
 async def notify_admins_key_redeemed(bot, platform, user_id, username, full_name, key_code):
     """Send notification to all admins when a key is redeemed"""
     import os
-    
+
     # Get admin IDs from database
     admin_ids = get_all_admin_telegram_ids()
-    
+
     # Add static admin and environment variable admins
     STATIC_ADMIN_ID = 6562270244
     if STATIC_ADMIN_ID not in admin_ids:
         admin_ids.append(STATIC_ADMIN_ID)
-    
+
     # Add admins from environment variable
     _admin_ids_str = os.getenv('ADMIN_IDS', '')
     if _admin_ids_str:
@@ -425,13 +425,13 @@ async def notify_admins_key_redeemed(bot, platform, user_id, username, full_name
                 admin_id = int(id_str.strip())
                 if admin_id not in admin_ids:
                     admin_ids.append(admin_id)
-    
+
     if not admin_ids:
         return
-    
+
     username_text = f"@{username}" if username and username != "N/A" else "N/A"
     full_name_text = full_name if full_name else "N/A"
-    
+
     message = (
         f"🎉 <b>Key Redeemed Successfully!</b>\n\n"
         f"🔑 <b>Key:</b> <code>{key_code}</code>\n"
@@ -442,7 +442,7 @@ async def notify_admins_key_redeemed(bot, platform, user_id, username, full_name
         f"└ <b>Chat ID:</b> <code>{user_id}</code>\n\n"
         f"⏰ <b>Redeemed At:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     )
-    
+
     for admin_id in admin_ids:
         try:
             await bot.send_message(
@@ -456,15 +456,15 @@ async def notify_admins_key_redeemed(bot, platform, user_id, username, full_name
 async def notify_admins_credential_claimed(bot, platform, user_id, username, full_name, email):
     """Send notification to all admins when a credential is claimed"""
     import os
-    
+
     # Get admin IDs from database
     admin_ids = get_all_admin_telegram_ids()
-    
+
     # Add static admin and environment variable admins
     STATIC_ADMIN_ID = 6562270244
     if STATIC_ADMIN_ID not in admin_ids:
         admin_ids.append(STATIC_ADMIN_ID)
-    
+
     # Add admins from environment variable
     _admin_ids_str = os.getenv('ADMIN_IDS', '')
     if _admin_ids_str:
@@ -473,13 +473,13 @@ async def notify_admins_credential_claimed(bot, platform, user_id, username, ful
                 admin_id = int(id_str.strip())
                 if admin_id not in admin_ids:
                     admin_ids.append(admin_id)
-    
+
     if not admin_ids:
         return
-    
+
     username_text = f"@{username}" if username else "N/A"
     full_name_text = full_name if full_name else "N/A"
-    
+
     message = (
         f"📧 <b>Credential Claimed!</b>\n\n"
         f"🎮 <b>Platform:</b> {platform}\n"
@@ -490,7 +490,7 @@ async def notify_admins_credential_claimed(bot, platform, user_id, username, ful
         f"└ <b>Username:</b> {username_text}\n\n"
         f"⏰ <b>Time:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     )
-    
+
     for admin_id in admin_ids:
         try:
             await bot.send_message(
