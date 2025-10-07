@@ -14,10 +14,10 @@ def get_platforms():
         return [{'id': p[0], 'name': p[1], 'emoji': p[2]} for p in platforms]
 
 def get_platform_by_name(name):
-    """Get platform by name"""
+    """Get platform by name (case-insensitive)"""
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT id, name, emoji FROM platforms WHERE name = %s", (name,))
+        cur.execute("SELECT id, name, emoji FROM platforms WHERE LOWER(name) = LOWER(%s)", (name,))
         platform = cur.fetchone()
         cur.close()
         if platform:

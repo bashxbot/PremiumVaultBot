@@ -14,9 +14,7 @@ def init_db_pool():
     if not database_url:
         raise ValueError("DATABASE_URL environment variable not set")
     
-    # Use connection pooler for better performance
-    database_url = database_url.replace('.us-east-2', '-pooler.us-east-2')
-    
+    # Use the provided connection string as-is (already uses pooler for Supabase)
     db_pool = pool.SimpleConnectionPool(
         minconn=1,
         maxconn=10,
