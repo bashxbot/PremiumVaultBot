@@ -1075,20 +1075,88 @@ async def handle_admin_message(update: Update,
             count = int(update.message.text)
             platform = context.user_data.get('cred_platform', '').lower()
 
-            # Use project root for credentials
-            project_root = get_project_root()
-            credential_file_path = os.path.join(project_root, 'credentials',
-                                           f'{platform}.json')
-
-            if not os.path.exists(credential_file_path):
+            # Get platform name
+            platform_title = get_platform_display_name(platform)
+            
+            # Check if platform has active credentials in database
+            from db_helpers import get_credentials_by_platform
+            credentials = get_credentials_by_platform(platform_title)
+            active_creds = [c for c in credentials if c['status'] == 'active']
+            
+            if not active_creds:
                 keyboard = [[
                     InlineKeyboardButton("🔙 Back to Main",
                                          callback_data="admin_main")
                 ]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 await update.message.reply_text(
-                    f"❌ <b>Credential File Missing</b>\n\n"
-                    f"The file `{credential_file_path}` doesn't exist.\n\n"
+                    f"❌ <b>No Active Credentials</b>\n\n"
+                    f"There are no active credentials for {platform_title} in the database.\n\n"
+                    f"Please add credentials through the admin panel first!",
+                    reply_markup=reply_markup,
+                    parse_mode='HTML')
+                context.user_data.pop('cred_step', None)
+                context.user_data.pop('cred_platform', None)
+                return
+
+            if len(active_creds) < count:
+                keyboard = [[
+                    InlineKeyboardButton("🔙 Back to Main",
+                                         callback_data="admin_main")
+                ]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await update.message.reply_text(
+                    f"❌ <b>Insufficient Credentials</b>\n\n"
+                    f"You requested {count} keys but only {len(active_creds)} active credentials are available.\n\n"
+                    f"Please add more credentials or reduce the number of keys.",
+                    reply_markup=reply_markup,
+                    parse_mode='HTML')
+                context.user_data.pop('cred_step', None)
+                context.user_data.pop('cred_platform', None)
+                return
+
+            # Generate keys
+            from db_helpers import add_key
+            keys_generated = []
+            
+            for i in range(count):
+                key_code = generate_key(platform_title)
+                account_text = active_creds[i]['email']  # Use email as account text
+                add_key(key_code, platform_title, uses=1, account_text=account_text)
+                keys_generated.append(key_code)
+            
+            keyboard = [[
+                InlineKeyboardButton("🔙 Back to Main",
+                                     callback_data="admin_main")
+            ]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            keys_list = "\n".join([f"• <code>{k}</code>" for k in keys_generated])
+            
+            await update.message.reply_text(
+                f"✅ <b>Keys Generated Successfully!</b>\n\n"
+                f"🎮 <b>Platform:</b> {platform_title}\n"
+                f"🔑 <b>Count:</b> {count}\n\n"
+                f"<b>Generated Keys:</b>\n{keys_list}\n\n"
+                f"💡 Users can redeem these keys to get accounts!",
+                reply_markup=reply_markup,
+                parse_mode='HTML')
+            
+            context.user_data.pop('cred_step', None)
+            context.user_data.pop('cred_platform', None)
+            
+        except ValueError:
+            keyboard = [[
+                InlineKeyboardButton("🔙 Back to Main",
+                                     callback_data="admin_main")
+            ]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text("❌ Please send a valid number!",
+                                            reply_markup=reply_markup,
+                                            parse_mode='HTML')
+        except Exception as e:
+            logger.error(f"Error setting up giveaway: {e}")
+            await update.message.reply_text(f"❌ An error occurred: {e}", parse_mode='HTML')dential_file_path}` doesn't exist.\n\n"
                     f"Please create it first with some credentials!",
                     reply_markup=reply_markup,
                     parse_mode='HTML')
