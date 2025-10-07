@@ -427,16 +427,20 @@ def delete_credential(platform, cred_id):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
 
-    with get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(f"DELETE FROM {platform}_credentials WHERE id = %s", (cred_id,))
-        deleted = cur.rowcount > 0
-        cur.close()
+    try:
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(f"DELETE FROM {platform}_credentials WHERE id = %s", (cred_id,))
+            deleted = cur.rowcount > 0
+            cur.close()
 
-    if deleted:
-        return jsonify({'success': True, 'message': 'Credential deleted successfully'})
+        if deleted:
+            return jsonify({'success': True, 'message': 'Credential deleted successfully'})
 
-    return jsonify({'success': False, 'message': 'Failed to delete credential'}), 500
+        return jsonify({'success': False, 'message': 'Credential not found'}), 404
+    except Exception as e:
+        logger.error(f"Error deleting credential: {e}")
+        return jsonify({'success': False, 'message': f'Error deleting credential: {str(e)}'}), 500
 
 @app.route('/api/credentials/<platform>/<int:cred_id>', methods=['PUT'])
 @login_required
@@ -444,25 +448,29 @@ def edit_credential(platform, cred_id):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
 
-    data = request.json
-    email = data.get('email')
-    password = data.get('password')
-    status = data.get('status')
+    try:
+        data = request.json
+        email = data.get('email')
+        password = data.get('password')
+        status = data.get('status')
 
-    with get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(f"""
-            UPDATE {platform}_credentials 
-            SET email = %s, password = %s, status = %s, updated_at = CURRENT_TIMESTAMP
-            WHERE id = %s
-        """, (email, password, status, cred_id))
-        updated = cur.rowcount > 0
-        cur.close()
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(f"""
+                UPDATE {platform}_credentials 
+                SET email = %s, password = %s, status = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (email, password, status, cred_id))
+            updated = cur.rowcount > 0
+            cur.close()
 
-    if updated:
-        return jsonify({'success': True, 'message': 'Credential updated successfully'})
+        if updated:
+            return jsonify({'success': True, 'message': 'Credential updated successfully'})
 
-    return jsonify({'success': False, 'message': 'Failed to update credential'}), 500
+        return jsonify({'success': False, 'message': 'Credential not found'}), 404
+    except Exception as e:
+        logger.error(f"Error updating credential: {e}")
+        return jsonify({'success': False, 'message': f'Error updating credential: {str(e)}'}), 500
 
 @app.route('/api/credentials/<platform>/claimed', methods=['GET'])
 @login_required
