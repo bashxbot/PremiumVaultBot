@@ -584,18 +584,19 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     # Get platform logo path
     project_root = get_project_root()
     platform_images = {
-        'Netflix': 'assets/platform-logos/netflix.jpg',
-        'Crunchyroll': 'assets/platform-logos/crunchyroll.jpg',
-        'WWE': 'assets/platform-logos/wwe.jpg',
-        'ParamountPlus': 'assets/platform-logos/paramountplus.jpg',
-        'Dazn': 'assets/platform-logos/dazn.jpg',
-        'MolotovTV': 'assets/platform-logos/molotovtv.jpg',
-        'DisneyPlus': 'assets/platform-logos/disneyplus.jpg',
-        'PSNFA': 'assets/platform-logos/psnfa.jpg',
-        'Xbox': 'assets/platform-logos/xbox.jpg',
-        'Spotify': 'assets/platform-logos/spotify.jpg'
+        'netflix': 'assets/platform-logos/netflix.jpg',
+        'crunchyroll': 'assets/platform-logos/crunchyroll.jpg',
+        'wwe': 'assets/platform-logos/wwe.jpg',
+        'paramountplus': 'assets/platform-logos/paramountplus.jpg',
+        'dazn': 'assets/platform-logos/dazn.jpg',
+        'molotovtv': 'assets/platform-logos/molotovtv.jpg',
+        'disneyplus': 'assets/platform-logos/disneyplus.jpg',
+        'psnfa': 'assets/platform-logos/psnfa.jpg',
+        'xbox': 'assets/platform-logos/xbox.jpg',
+        'spotify': 'assets/platform-logos/spotify.jpg'
     }
-    image_path = platform_images.get(platform_name)
+    # Use lowercase for matching
+    image_path = platform_images.get(platform_name.lower())
     if image_path:
         image_path = os.path.join(project_root, image_path)
 
