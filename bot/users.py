@@ -156,7 +156,7 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("📢 Channel Config",
                                  url="https://t.me/+gxVbPeU842ZkNmU0")
         ], [InlineKeyboardButton("❓ Help", callback_data="user_help")],
-        [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/BEASTSEC")]
+        [InlineKeyboardButton("👨‍💻 Developer", callback_data="user_developer")]
     ]
 
     # Check if there's an active giveaway
@@ -811,7 +811,17 @@ async def show_developer_info(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.answer()
 
     developer_text = (
-        "If you want to make your own Telegram bots or Websites, you can contact me."
+        "👨‍💻 <b>Developer Services</b>\n\n"
+        "💡 <b>Want to create your own custom solutions?</b>\n\n"
+        "🤖 <b>Telegram Bots</b>\n"
+        "   • Custom bot development\n"
+        "   • Feature-rich automation\n"
+        "   • Integration services\n\n"
+        "🌐 <b>Websites & Web Apps</b>\n"
+        "   • Modern web development\n"
+        "   • Responsive design\n"
+        "   • Full-stack solutions\n\n"
+        "✨ <i>Let's bring your ideas to life!</i>"
     )
 
     keyboard = [
