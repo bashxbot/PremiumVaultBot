@@ -581,38 +581,23 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Get platform logo path
+    # Get platform logo path - try PNG first, then JPG
     project_root = get_project_root()
-    platform_images = {
-        'netflix': 'assets/platform-logos/netflix.jpg',
-        'crunchyroll': 'assets/platform-logos/crunchyroll.jpg',
-        'wwe': 'assets/platform-logos/wwe.jpg',
-        'paramountplus': 'assets/platform-logos/paramountplus.jpg',
-        'dazn': 'assets/platform-logos/dazn.jpg',
-        'molotovtv': 'assets/platform-logos/molotovtv.jpg',
-        'disneyplus': 'assets/platform-logos/disneyplus.jpg',
-        'psnfa': 'assets/platform-logos/psnfa.jpg',
-        'xbox': 'assets/platform-logos/xbox.jpg',
-        'spotify': 'assets/platform-logos/spotify.jpg'
-    }
-    
-    # Use lowercase for matching
     platform_lower = platform_name.lower()
     image_path = None
     
-    if platform_lower in platform_images:
-        image_path = os.path.join(project_root, platform_images[platform_lower])
-        logger.info(f"Looking for image at: {image_path}")
-        
-        # Check if image exists and is valid
-        if not os.path.exists(image_path):
-            logger.warning(f"Image not found at {image_path}")
-            image_path = None
-        elif os.path.getsize(image_path) == 0:
-            logger.warning(f"Image file is empty at {image_path}")
-            image_path = None
+    # Try PNG first (from attached_assets)
+    png_path = os.path.join(project_root, 'attached_assets', 'platforms', f'{platform_lower}.png')
+    jpg_path = os.path.join(project_root, 'assets', 'platform-logos', f'{platform_lower}.jpg')
+    
+    if os.path.exists(png_path) and os.path.getsize(png_path) > 0:
+        image_path = png_path
+        logger.info(f"Using PNG image at: {image_path}")
+    elif os.path.exists(jpg_path) and os.path.getsize(jpg_path) > 0:
+        image_path = jpg_path
+        logger.info(f"Using JPG image at: {image_path}")
     else:
-        logger.warning(f"No image configured for platform: {platform_name}")
+        logger.warning(f"No valid image found for platform: {platform_name}")
 
     # NOW do database operations
     claim_credential(platform_name, credential['id'], user_id, username_str,

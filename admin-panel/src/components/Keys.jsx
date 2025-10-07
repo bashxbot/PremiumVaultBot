@@ -10,12 +10,14 @@ function Keys({ platform }) {
   const [keys, setKeys] = useState([])
   const [showGenerateModal, setShowGenerateModal] = useState(false)
   const [generateFormData, setGenerateFormData] = useState({ uses: 1, account_text: '' })
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetchKeys()
   }, [platform])
 
   const fetchKeys = async () => {
+    setLoading(true)
     try {
       const response = await fetch(`/api/keys/${platform}`)
       const data = await response.json()
@@ -24,6 +26,8 @@ function Keys({ platform }) {
       }
     } catch (error) {
       console.error('Error fetching keys:', error)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -112,26 +116,33 @@ function Keys({ platform }) {
         </div>
       </div>
 
-      <div className="stats-grid">
-        <div className="stat-card">
-          <h3>Total Keys</h3>
-          <div className="number">{stats.total}</div>
+      {loading ? (
+        <div className="loading-container">
+          <div className="spinner"></div>
+          <p>Loading keys...</p>
         </div>
-        <div className="stat-card">
-          <h3>Active Keys</h3>
-          <div className="number">{stats.active}</div>
-        </div>
-        <div className="stat-card">
-          <h3>Expired Keys</h3>
-          <div className="number">{stats.expired}</div>
-        </div>
-        <div className="stat-card">
-          <h3>Fully Used</h3>
-          <div className="number">{stats.used}</div>
-        </div>
-      </div>
+      ) : (
+        <>
+          <div className="stats-grid">
+            <div className="stat-card">
+              <h3>Total Keys</h3>
+              <div className="number">{stats.total}</div>
+            </div>
+            <div className="stat-card">
+              <h3>Active Keys</h3>
+              <div className="number">{stats.active}</div>
+            </div>
+            <div className="stat-card">
+              <h3>Expired Keys</h3>
+              <div className="number">{stats.expired}</div>
+            </div>
+            <div className="stat-card">
+              <h3>Fully Used</h3>
+              <div className="number">{stats.used}</div>
+            </div>
+          </div>
 
-      <table>
+          <table>
         <thead>
           <tr>
             <th>#</th>
@@ -181,6 +192,8 @@ function Keys({ platform }) {
           )}
         </tbody>
       </table>
+        </>
+      )}
 
       {showGenerateModal && (
         <div className="modal">

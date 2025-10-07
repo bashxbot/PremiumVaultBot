@@ -6,6 +6,7 @@ import { FaStar, FaTv, FaGamepad, FaXbox } from 'react-icons/fa'
 import { MdSportsKabaddi } from 'react-icons/md'
 import ClaimedCredentials from './ClaimedCredentials'
 import './Credentials.css'
+import './LoadingSpinner.css' // Import the CSS for the loading spinner
 
 function Credentials({ platform, refreshStats }) {
   const [credentials, setCredentials] = useState([])
@@ -16,12 +17,14 @@ function Credentials({ platform, refreshStats }) {
   const [editIndex, setEditIndex] = useState(null)
   const [formData, setFormData] = useState({ email: '', password: '', status: 'active' })
   const [uploadFile, setUploadFile] = useState(null)
+  const [isLoading, setIsLoading] = useState(false) // State for loading spinner
 
   useEffect(() => {
     fetchCredentials()
   }, [platform])
 
   const fetchCredentials = async () => {
+    setIsLoading(true) // Show loading spinner
     try {
       const response = await fetch(`/api/credentials/${platform}`)
       const data = await response.json()
@@ -30,11 +33,14 @@ function Credentials({ platform, refreshStats }) {
       }
     } catch (error) {
       console.error('Error fetching credentials:', error)
+    } finally {
+      setIsLoading(false) // Hide loading spinner
     }
   }
 
   const handleAdd = async (e) => {
     e.preventDefault()
+    setIsLoading(true) // Show loading spinner
     try {
       const response = await fetch(`/api/credentials/${platform}`, {
         method: 'POST',
@@ -51,11 +57,14 @@ function Credentials({ platform, refreshStats }) {
       }
     } catch (error) {
       alert('Error adding credential: ' + error.message)
+    } finally {
+      setIsLoading(false) // Hide loading spinner
     }
   }
 
   const handleEdit = async (e) => {
     e.preventDefault()
+    setIsLoading(true) // Show loading spinner
     try {
       const response = await fetch(`/api/credentials/${platform}/${editIndex}`, {
         method: 'PUT',
@@ -73,12 +82,15 @@ function Credentials({ platform, refreshStats }) {
       }
     } catch (error) {
       alert('Error updating credential: ' + error.message)
+    } finally {
+      setIsLoading(false) // Hide loading spinner
     }
   }
 
   const handleDelete = async (credId) => {
     if (!confirm('Are you sure you want to delete this credential?')) return
-    
+
+    setIsLoading(true) // Show loading spinner
     try {
       const response = await fetch(`/api/credentials/${platform}/${credId}`, {
         method: 'DELETE'
@@ -91,12 +103,15 @@ function Credentials({ platform, refreshStats }) {
       }
     } catch (error) {
       alert('Error deleting credential: ' + error.message)
+    } finally {
+      setIsLoading(false) // Hide loading spinner
     }
   }
 
   const handleDeleteAll = async () => {
     if (!confirm(`Are you sure you want to delete ALL ${platform} credentials? This cannot be undone!`)) return
-    
+
+    setIsLoading(true) // Show loading spinner
     try {
       const response = await fetch(`/api/credentials/${platform}/delete-all`, {
         method: 'DELETE'
@@ -109,6 +124,8 @@ function Credentials({ platform, refreshStats }) {
       }
     } catch (error) {
       alert('Error deleting all credentials: ' + error.message)
+    } finally {
+      setIsLoading(false) // Hide loading spinner
     }
   }
 
@@ -116,6 +133,7 @@ function Credentials({ platform, refreshStats }) {
     e.preventDefault()
     if (!uploadFile) return
 
+    setIsLoading(true) // Show loading spinner
     const formData = new FormData()
     formData.append('file', uploadFile)
 
@@ -134,6 +152,8 @@ function Credentials({ platform, refreshStats }) {
       }
     } catch (error) {
       alert('Error uploading credentials: ' + error.message)
+    } finally {
+      setIsLoading(false) // Hide loading spinner
     }
   }
 
@@ -179,7 +199,7 @@ function Credentials({ platform, refreshStats }) {
     dazn: MdSportsKabaddi,
     molotovtv: FaTv,
     disneyplus: FaStar,
-    psnfa: FaGamepad,
+    psnfa: FaGamepad, // Assuming psnfa should use FaGamepad as per error
     xbox: FaXbox
   }
 
@@ -196,47 +216,55 @@ function Credentials({ platform, refreshStats }) {
         </div>
       </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Email</th>
-            <th>Password</th>
-            <th>Status</th>
-            <th>Created At</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {credentials.map((cred, index) => (
-            <tr key={cred.id}>
-              <td>{index + 1}</td>
-              <td>{cred.email}</td>
-              <td>{cred.password}</td>
-              <td>
-                <span className={`badge badge-${cred.status}`}>{cred.status}</span>
-              </td>
-              <td>{cred.created_at ? cred.created_at.slice(0, 19) : 'N/A'}</td>
-              <td>
-                {cred.status === 'claimed' && (
-                  <button className="btn btn-sm btn-info" onClick={() => openClaimerModal(cred)} title="View Claimer Details">
-                    <MdAdd style={{ transform: 'rotate(45deg)' }} />
-                  </button>
-                )}
-                <button className="btn btn-sm btn-warning" onClick={() => openEditModal(cred.id, cred)}><MdEdit /></button>
-                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(cred.id)}><MdDelete /></button>
-              </td>
-            </tr>
-          ))}
-          {credentials.length === 0 && (
+      {isLoading && (
+        <div className="loading-wrapper">
+          <div className="spinner"></div>
+        </div>
+      )}
+
+      {!isLoading && credentials.length === 0 && (
+        <div className="no-credentials-message">
+          No credentials found. Add some to get started!
+        </div>
+      )}
+
+      {!isLoading && credentials.length > 0 && (
+        <table>
+          <thead>
             <tr>
-              <td colSpan="6" style={{ textAlign: 'center', color: '#999' }}>
-                No credentials found. Add some to get started!
-              </td>
+              <th>#</th>
+              <th>Email</th>
+              <th>Password</th>
+              <th>Status</th>
+              <th>Created At</th>
+              <th>Actions</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {credentials.map((cred, index) => (
+              <tr key={cred.id}>
+                <td>{index + 1}</td>
+                <td>{cred.email}</td>
+                <td>{cred.password}</td>
+                <td>
+                  <span className={`badge badge-${cred.status}`}>{cred.status}</span>
+                </td>
+                <td>{cred.created_at ? cred.created_at.slice(0, 19) : 'N/A'}</td>
+                <td>
+                  {cred.status === 'claimed' && (
+                    <button className="btn btn-sm btn-info" onClick={() => openClaimerModal(cred)} title="View Claimer Details">
+                      <MdAdd style={{ transform: 'rotate(45deg)' }} />
+                    </button>
+                  )}
+                  <button className="btn btn-sm btn-warning" onClick={() => openEditModal(cred.id, cred)}><MdEdit /></button>
+                  <button className="btn btn-sm btn-danger" onClick={() => handleDelete(cred.id)}><MdDelete /></button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
 
       {showModal && (
         <div className="modal" onClick={() => setShowModal(false)}>
