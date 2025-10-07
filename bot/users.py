@@ -828,7 +828,7 @@ async def show_developer_info(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
 
         keyboard = [
-            [InlineKeyboardButton("📞 Contact Me", url="https://t.me/BEASTSEC")],
+            [InlineKeyboardButton("✉️ Contact Me", url="https://t.me/BEASTSEC")],
             [InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
