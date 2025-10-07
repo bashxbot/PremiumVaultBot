@@ -1115,8 +1115,7 @@ async def handle_admin_message(update: Update,
                 context.user_data.pop('cred_platform', None)
                 return
 
-            # Generate keys
-            from db_helpers import add_key
+            # Generate keys - add_key is already imported at top
             keys_generated = []
             
             for i in range(count):
