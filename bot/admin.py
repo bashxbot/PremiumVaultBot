@@ -1156,16 +1156,7 @@ async def handle_admin_message(update: Update,
                                             parse_mode='HTML')
         except Exception as e:
             logger.error(f"Error setting up giveaway: {e}")
-            await update.message.reply_text(f"❌ An error occurred: {e}", parse_mode='HTML')dential_file_path}` doesn't exist.\n\n"
-                    f"Please create it first with some credentials!",
-                    reply_markup=reply_markup,
-                    parse_mode='HTML')
-                context.user_data.pop('cred_step', None)
-                context.user_data.pop('cred_platform', None)
-                return
-
-            with open(credential_file_path, 'r') as f:
-                credentials = json.load(f)
+            await update.message.reply_text(f"❌ An error occurred: {e}", parse_mode='HTML')
 
             # Separate credentials by status: active first, then claimed, then used/others
             active_creds = [
