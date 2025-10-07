@@ -42,8 +42,8 @@ def init_db_pool():
     
     try:
         db_pool = pool.SimpleConnectionPool(
-            minconn=1,
-            maxconn=10,
+            1,  # minconn
+            10,  # maxconn
             conn_string
         )
         print(f"✓ Database pool initialized successfully")
