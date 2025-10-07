@@ -13,6 +13,11 @@ from db_helpers import (
     notify_admins_key_redeemed, notify_admins_credential_claimed
 )
 
+# ==================== CONFIGURATION ====================
+# Set to True to enable 10-minute cooldown between key redemptions
+# Set to False to disable cooldown (useful for testing)
+REDEMPTION_COOLDOWN_ENABLED = True
+# =======================================================
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -427,37 +432,38 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Check 10-minute cooldown
-    with get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT redeemed_at FROM key_redemptions 
-            WHERE user_id = %s 
-            ORDER BY redeemed_at DESC 
-            LIMIT 1
-        """, (user_id,))
-        last_redemption = cur.fetchone()
-        cur.close()
-        
-        if last_redemption:
-            from datetime import datetime, timedelta
-            last_time = last_redemption[0]
-            time_diff = datetime.now() - last_time
-            cooldown_seconds = 10 * 60  # 10 minutes
+    # Check 10-minute cooldown (only if enabled)
+    if REDEMPTION_COOLDOWN_ENABLED:
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT redeemed_at FROM key_redemptions 
+                WHERE user_id = %s 
+                ORDER BY redeemed_at DESC 
+                LIMIT 1
+            """, (user_id,))
+            last_redemption = cur.fetchone()
+            cur.close()
             
-            if time_diff.total_seconds() < cooldown_seconds:
-                remaining_seconds = int(cooldown_seconds - time_diff.total_seconds())
-                remaining_minutes = remaining_seconds // 60
-                remaining_secs = remaining_seconds % 60
+            if last_redemption:
+                from datetime import datetime, timedelta
+                last_time = last_redemption[0]
+                time_diff = datetime.now() - last_time
+                cooldown_seconds = 10 * 60  # 10 minutes
                 
-                await update.message.reply_text(
-                    f"⏳ <b>Cooldown Active</b>\n\n"
-                    f"⚠️ You must wait <b>{remaining_minutes} minutes and {remaining_secs} seconds</b> before redeeming another key.\n\n"
-                    f"🕐 Last redemption: {last_time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-                    f"💡 This cooldown helps prevent abuse and ensures fair distribution!",
-                    reply_markup=reply_markup,
-                    parse_mode='HTML')
-                return
+                if time_diff.total_seconds() < cooldown_seconds:
+                    remaining_seconds = int(cooldown_seconds - time_diff.total_seconds())
+                    remaining_minutes = remaining_seconds // 60
+                    remaining_secs = remaining_seconds % 60
+                    
+                    await update.message.reply_text(
+                        f"⏳ <b>Cooldown Active</b>\n\n"
+                        f"⚠️ You must wait <b>{remaining_minutes} minutes and {remaining_secs} seconds</b> before redeeming another key.\n\n"
+                        f"🕐 Last redemption: {last_time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                        f"💡 This cooldown helps prevent abuse and ensures fair distribution!",
+                        reply_markup=reply_markup,
+                        parse_mode='HTML')
+                    return
 
     # Find the key in database
     key_found = get_key_by_code(key_code)
