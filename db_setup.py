@@ -4,20 +4,6 @@ import psycopg2
 from psycopg2 import pool
 from contextlib import contextmanager
 
-# Disable IPv6 for psycopg2 connections
-os.environ['PGHOST_RESOLVE_IPv6'] = '0'
-
-# Force IPv4 resolution
-import socket
-_original_getaddrinfo = socket.getaddrinfo
-
-def _getaddrinfo_ipv4_only(*args, **kwargs):
-    """Force IPv4 resolution"""
-    kwargs['family'] = socket.AF_INET
-    return _original_getaddrinfo(*args, **kwargs)
-
-socket.getaddrinfo = _getaddrinfo_ipv4_only
-
 # Database connection pool
 db_pool = None
 
@@ -36,11 +22,11 @@ def init_db_pool():
     import socket
     ipv4_addr = None
     try:
-        # Force IPv4 resolution
+        # Force IPv4 resolution for Supabase
         addr_info = socket.getaddrinfo(
             parsed.hostname, 
             parsed.port or 5432, 
-            socket.AF_INET,  # Force IPv4
+            socket.AF_INET,  # IPv4 only
             socket.SOCK_STREAM
         )
         if addr_info:
