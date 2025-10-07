@@ -249,39 +249,21 @@ def set_telegram_id():
 def get_stats():
     try:
         stats = {}
+        total_keys = 0
+        active_keys = 0
         
         with get_db_connection() as conn:
             cur = conn.cursor()
             
             for platform in PLATFORMS:
-                platform_title = platform.capitalize()
-                if platform == 'paramountplus':
-                    platform_title = 'ParamountPlus'
-                elif platform == 'molotovtv':
-                    platform_title = 'MolotovTV'
-                elif platform == 'disneyplus':
-                    platform_title = 'DisneyPlus'
-                elif platform == 'psnfa':
-                    platform_title = 'PSNFA'
-                elif platform == 'xbox':
-                    platform_title = 'Xbox'
-                elif platform == 'crunchyroll':
-                    platform_title = 'Crunchyroll'
-                elif platform == 'wwe':
-                    platform_title = 'WWE'
-                elif platform == 'dazn':
-                    platform_title = 'Dazn'
-                
-                cur.execute("""
+                cur.execute(f"""
                     SELECT 
                         COUNT(*) as total,
                         COUNT(*) FILTER (WHERE status = 'active') as active,
                         COUNT(*) FILTER (WHERE status = 'claimed') as claimed,
                         COUNT(*) FILTER (WHERE status = 'inactive') as inactive
-                    FROM credentials c
-                    JOIN platforms p ON c.platform_id = p.id
-                    WHERE p.name = %s
-                """, (platform_title,))
+                    FROM {platform}_credentials
+                """)
                 result = cur.fetchone()
                 
                 stats[platform] = {
@@ -290,12 +272,14 @@ def get_stats():
                     'claimed': result[2] if result else 0,
                     'inactive': result[3] if result else 0
                 }
-            
-            cur.execute("SELECT COUNT(*) FROM keys")
-            total_keys = cur.fetchone()[0]
-            
-            cur.execute("SELECT COUNT(*) FROM keys WHERE status = 'active'")
-            active_keys = cur.fetchone()[0]
+                
+                cur.execute(f"SELECT COUNT(*) FROM {platform}_keys")
+                platform_total_keys = cur.fetchone()[0]
+                total_keys += platform_total_keys
+                
+                cur.execute(f"SELECT COUNT(*) FROM {platform}_keys WHERE status = 'active'")
+                platform_active_keys = cur.fetchone()[0]
+                active_keys += platform_active_keys
             
             cur.close()
         
@@ -470,31 +454,9 @@ def delete_all_credentials(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
     
-    platform_title = platform.capitalize()
-    if platform == 'paramountplus':
-        platform_title = 'ParamountPlus'
-    elif platform == 'molotovtv':
-        platform_title = 'MolotovTV'
-    elif platform == 'disneyplus':
-        platform_title = 'DisneyPlus'
-    elif platform == 'psnfa':
-        platform_title = 'PSNFA'
-    elif platform == 'xbox':
-        platform_title = 'Xbox'
-    elif platform == 'crunchyroll':
-        platform_title = 'Crunchyroll'
-    elif platform == 'wwe':
-        platform_title = 'WWE'
-    elif platform == 'dazn':
-        platform_title = 'Dazn'
-    
-    platform_data = get_platform_by_name(platform_title)
-    if not platform_data:
-        return jsonify({'success': False, 'message': 'Platform not found'}), 404
-    
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("DELETE FROM credentials WHERE platform_id = %s", (platform_data['id'],))
+        cur.execute(f"DELETE FROM {platform}_credentials")
         cur.close()
     
     return jsonify({'success': True, 'message': f'All {platform} credentials deleted successfully'})
@@ -505,31 +467,9 @@ def delete_all_keys(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
     
-    platform_title = platform.capitalize()
-    if platform == 'paramountplus':
-        platform_title = 'ParamountPlus'
-    elif platform == 'molotovtv':
-        platform_title = 'MolotovTV'
-    elif platform == 'disneyplus':
-        platform_title = 'DisneyPlus'
-    elif platform == 'psnfa':
-        platform_title = 'PSNFA'
-    elif platform == 'xbox':
-        platform_title = 'Xbox'
-    elif platform == 'crunchyroll':
-        platform_title = 'Crunchyroll'
-    elif platform == 'wwe':
-        platform_title = 'WWE'
-    elif platform == 'dazn':
-        platform_title = 'Dazn'
-    
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT id FROM platforms WHERE name = %s", (platform_title,))
-        result = cur.fetchone()
-        if result:
-            platform_id = result[0]
-            cur.execute("DELETE FROM keys WHERE platform_id = %s", (platform_id,))
+        cur.execute(f"DELETE FROM {platform}_keys")
         cur.close()
     
     return jsonify({'success': True, 'message': f'All {platform} keys deleted successfully'})
@@ -571,16 +511,14 @@ def get_redemption_history():
             cur = conn.cursor()
             cur.execute("""
                 SELECT 
-                    kr.user_id,
-                    kr.username,
-                    kr.full_name,
-                    kr.redeemed_at,
-                    k.key_code,
-                    p.name as platform
-                FROM key_redemptions kr
-                JOIN keys k ON kr.key_id = k.id
-                JOIN platforms p ON k.platform_id = p.id
-                ORDER BY kr.redeemed_at DESC
+                    user_id,
+                    username,
+                    full_name,
+                    redeemed_at,
+                    key_code,
+                    platform
+                FROM key_redemptions
+                ORDER BY redeemed_at DESC
                 LIMIT 100
             """)
             redemptions = cur.fetchall()
@@ -606,34 +544,34 @@ def get_redemption_history():
 def get_claim_history():
     """Get history of all credential claims with user details"""
     try:
+        history = []
+        
         with get_db_connection() as conn:
             cur = conn.cursor()
-            cur.execute("""
-                SELECT 
-                    c.claimed_by as user_id,
-                    c.claimed_by_username,
-                    c.claimed_by_name,
-                    c.claimed_at,
-                    c.email,
-                    p.name as platform
-                FROM credentials c
-                JOIN platforms p ON c.platform_id = p.id
-                WHERE c.status = 'claimed' AND c.claimed_by IS NOT NULL
-                ORDER BY c.claimed_at DESC
-                LIMIT 100
-            """)
-            claims = cur.fetchall()
-            cur.close()
             
-            history = []
-            for c in claims:
-                history.append({
-                    'user_id': c[0],
-                    'username': c[1] if c[1] else 'N/A',
-                    'full_name': c[2] if c[2] else 'N/A',
-                    'claimed_at': c[3].isoformat() if c[3] else None,
-                    'email': c[4],
-                    'platform': c[5]
+            for platform in PLATFORMS:
+                cur.execute(f"""
+                    SELECT 
+                        claimed_by as user_id,
+                        claimed_by_username,
+                        claimed_by_name,
+                        claimed_at,
+                        email
+                    FROM {platform}_credentials
+                    WHERE status = 'claimed' AND claimed_by IS NOT NULL
+                    ORDER BY claimed_at DESC
+                    LIMIT 100
+                """)
+                claims = cur.fetchall()
+                
+                for c in claims:
+                    history.append({
+                        'user_id': c[0],
+                        'username': c[1] if c[1] else 'N/A',
+                        'full_name': c[2] if c[2] else 'N/A',
+                        'claimed_at': c[3].isoformat() if c[3] else None,
+                        'email': c[4],
+                        'platform': platform
                 })
             
             return jsonify({'success': True, 'history': history})
