@@ -1,0 +1,35 @@
+==> Running 'python start.py'
+2025-10-07 14:35:10,492 - __main__ - INFO - 🚀 Starting Premium Vault - Bot & Admin Panel
+2025-10-07 14:35:10,787 - __main__ - INFO - 📊 Initializing PostgreSQL database...
+2025-10-07 14:35:10,787 - __main__ - ERROR - ❌ Database initialization failed: DATABASE_URL environment variable not set
+2025-10-07 14:35:10,787 - __main__ - INFO - ⚠️ Continuing without database - please check DATABASE_URL
+2025-10-07 14:35:10,787 - __main__ - INFO - ✅ Flask admin panel thread started
+2025-10-07 14:35:14,983 - __main__ - INFO - 🌐 Admin Panel starting on port 10000...
+ * Serving Flask app 'api_server'
+ * Debug mode: off
+2025-10-07 14:35:14,989 - werkzeug - INFO - WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:10000
+ * Running on http://10.210.185.88:10000
+2025-10-07 14:35:14,989 - werkzeug - INFO - Press CTRL+C to quit
+2025-10-07 14:35:15,484 - werkzeug - INFO - 127.0.0.1 - - [07/Oct/2025 14:35:15] "HEAD / HTTP/1.1" 200 -
+     ==> Your service is live 🎉
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+2025-10-07 14:35:16,785 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-07 14:35:16,785 - __main__ - INFO - ✅ Giveaway checker job scheduled (runs every 30 seconds)
+2025-10-07 14:35:16,785 - __main__ - INFO - 🎮 Premium Vault Bot is starting...
+2025-10-07 14:35:17,669 - apscheduler.scheduler - INFO - Added job "check_and_process_giveaways" to job store "default"
+2025-10-07 14:35:17,669 - apscheduler.scheduler - INFO - Scheduler started
+2025-10-07 14:35:17,670 - telegram.ext.Application - INFO - Application started
+     ==> 
+     ==> Available at your primary URL https://premiumvaultbot-1.onrender.com
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+2025-10-07 14:35:21,541 - werkzeug - INFO - 127.0.0.1 - - [07/Oct/2025 14:35:21] "GET / HTTP/1.1" 200 -
+2025-10-07 14:35:26,783 - apscheduler.executors.default - INFO - Running job "check_and_process_giveaways (trigger: interval[0:00:30], next run at: 2025-10-07 14:35:56 UTC)" (scheduled at 2025-10-07 14:35:26.783113+00:00)
+2025-10-07 14:35:26,784 - admin - ERROR - Error in check_and_process_giveaways: DATABASE_URL environment variable not set
+2025-10-07 14:35:26,784 - apscheduler.executors.default - INFO - Job "check_and_process_giveaways (trigger: interval[0:00:30], next run at: 2025-10-07 14:35:56 UTC)" executed successfully
+2025-10-07 14:35:56,793 - apscheduler.executors.default - INFO - Running job "check_and_process_giveaways (trigger: interval[0:00:30], next run at: 2025-10-07 14:36:26 UTC)" (scheduled at 2025-10-07 14:35:56.783113+00:00)
+2025-10-07 14:35:56,793 - admin - ERROR - Error in check_and_process_giveaways: DATABASE_URL environment variable not set
+2025-10-07 14:35:56,793 - apscheduler.executors.default - INFO - Job "check_and_process_giveaways (trigger: interval[0:00:30], next run at: 2025-10-07 14:36:26 UTC)" executed successfully
