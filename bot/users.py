@@ -808,28 +808,38 @@ async def redeem_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def show_developer_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show developer information and contact button"""
     query = update.callback_query
-    await query.answer()
+    
+    try:
+        await query.answer()
+        logger.info("Developer button clicked")
 
-    developer_text = (
-        "👨‍💻 <b>Developer Services</b>\n\n"
-        "💡 <b>Want to create your own custom solutions?</b>\n\n"
-        "🤖 <b>Telegram Bots</b>\n"
-        "   • Custom bot development\n"
-        "   • Feature-rich automation\n"
-        "   • Integration services\n\n"
-        "🌐 <b>Websites & Web Apps</b>\n"
-        "   • Modern web development\n"
-        "   • Responsive design\n"
-        "   • Full-stack solutions\n\n"
-        "✨ <i>Let's bring your ideas to life!</i>"
-    )
+        developer_text = (
+            "👨‍💻 <b>Developer Services</b>\n\n"
+            "💡 <b>Want to create your own custom solutions?</b>\n\n"
+            "🤖 <b>Telegram Bots</b>\n"
+            "   • Custom bot development\n"
+            "   • Feature-rich automation\n"
+            "   • Integration services\n\n"
+            "🌐 <b>Websites & Web Apps</b>\n"
+            "   • Modern web development\n"
+            "   • Responsive design\n"
+            "   • Full-stack solutions\n\n"
+            "✨ <i>Let's bring your ideas to life!</i>"
+        )
 
-    keyboard = [
-        [InlineKeyboardButton("📞 Contact Me", url="https://t.me/BEASTSEC")],
-        [InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+        keyboard = [
+            [InlineKeyboardButton("📞 Contact Me", url="https://t.me/BEASTSEC")],
+            [InlineKeyboardButton("🔙 Back to Main", callback_data="user_main")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await query.edit_message_text(text=developer_text,
-                                  reply_markup=reply_markup,
-                                  parse_mode='HTML')
+        await query.edit_message_text(
+            text=developer_text,
+            reply_markup=reply_markup,
+            parse_mode='HTML'
+        )
+        logger.info("Developer info displayed successfully")
+        
+    except Exception as e:
+        logger.error(f"Error showing developer info: {e}", exc_info=True)
+        await query.answer("❌ An error occurred. Please try again.", show_alert=True)
