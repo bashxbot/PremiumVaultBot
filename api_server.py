@@ -492,11 +492,38 @@ def get_keys(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
     
-    platform_title = get_platform_title(platform)
-    
-    platform_keys = get_keys_by_platform(platform_title)
-    
-    return jsonify({'success': True, 'keys': platform_keys})
+    try:
+        platform_title = get_platform_title(platform)
+        
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(f"""
+                SELECT id, key_code, uses, remaining_uses, account_text, status, 
+                       created_at, redeemed_at, giveaway_generated, giveaway_winner
+                FROM {platform}_keys
+                ORDER BY created_at DESC
+            """)
+            rows = cur.fetchall()
+            cur.close()
+            
+            keys = []
+            for row in rows:
+                keys.append({
+                    'id': row[0],
+                    'key_code': row[1],
+                    'uses': row[2],
+                    'remaining_uses': row[3],
+                    'account_text': row[4] if row[4] else '',
+                    'status': row[5],
+                    'created_at': row[6].isoformat() if row[6] else None,
+                    'redeemed_at': row[7].isoformat() if row[7] else None,
+                    'giveaway_generated': row[8] if row[8] else False,
+                    'giveaway_winner': row[9] if row[9] else None
+                })
+        
+        return jsonify({'success': True, 'keys': keys})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e), 'keys': []}), 500
 
 @app.route('/api/keys/<platform>', methods=['POST'])
 @login_required
