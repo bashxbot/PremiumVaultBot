@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify, send_from_directory, session, redirect, url_for
 from flask_cors import CORS
 import os
@@ -6,7 +5,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 import secrets
 import string
-from db_setup import get_db_connection
+from db_setup import get_db_connection, init_db_pool, db_pool
 from db_helpers import (
     get_platforms, get_platform_by_name, get_credentials_by_platform,
     add_credential as db_add_credential, update_credential as db_update_credential,
@@ -74,7 +73,7 @@ def login():
     data = request.json
     username = data.get('username')
     password = data.get('password')
-    
+
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute("""
@@ -84,14 +83,14 @@ def login():
         """, (username,))
         user = cur.fetchone()
         cur.close()
-        
+
         if user and user[1] == password:
             session.permanent = True
             session['logged_in'] = True
             session['username'] = user[0]
             session['role'] = user[2]
             return jsonify({'success': True, 'role': user[2]})
-    
+
     return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
 
 @app.route('/api/logout', methods=['POST'])
@@ -110,7 +109,7 @@ def check_auth():
 def get_admins():
     if session.get('role') != 'owner':
         return jsonify({'success': False, 'message': 'Only owner can view admins'}), 403
-    
+
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute("""
@@ -119,7 +118,7 @@ def get_admins():
         """)
         admins = cur.fetchall()
         cur.close()
-        
+
     safe_admins = [{'username': admin[0]} for admin in admins]
     return jsonify({'success': True, 'admins': safe_admins})
 
@@ -128,14 +127,14 @@ def get_admins():
 def add_admin():
     if session.get('role') != 'owner':
         return jsonify({'success': False, 'message': 'Only owner can add admins'}), 403
-    
+
     data = request.json
     username = data.get('username')
     password = data.get('password')
-    
+
     if not username or not password:
         return jsonify({'success': False, 'message': 'Username and password required'}), 400
-    
+
     try:
         with get_db_connection() as conn:
             cur = conn.cursor()
@@ -155,7 +154,7 @@ def add_admin():
 def delete_admin(username):
     if session.get('role') != 'owner':
         return jsonify({'success': False, 'message': 'Only owner can delete admins'}), 403
-    
+
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute("""
@@ -163,7 +162,7 @@ def delete_admin(username):
             WHERE username = %s AND role = 'admin'
         """, (username,))
         cur.close()
-    
+
     return jsonify({'success': True, 'message': 'Admin deleted successfully'})
 
 @app.route('/api/change-username', methods=['POST'])
@@ -171,12 +170,12 @@ def delete_admin(username):
 def change_username():
     data = request.json
     new_username = data.get('newUsername')
-    
+
     if not new_username:
         return jsonify({'success': False, 'message': 'New username is required'}), 400
-    
+
     current_username = session.get('username')
-    
+
     try:
         with get_db_connection() as conn:
             cur = conn.cursor()
@@ -186,7 +185,7 @@ def change_username():
                 WHERE username = %s
             """, (new_username, current_username))
             cur.close()
-        
+
         session['username'] = new_username
         return jsonify({'success': True, 'message': 'Username changed successfully'})
     except Exception as e:
@@ -200,12 +199,12 @@ def change_password():
     data = request.json
     current_password = data.get('currentPassword')
     new_password = data.get('newPassword')
-    
+
     if not current_password or not new_password:
         return jsonify({'success': False, 'message': 'Current and new passwords are required'}), 400
-    
+
     current_username = session.get('username')
-    
+
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute("""
@@ -213,25 +212,25 @@ def change_password():
             WHERE username = %s
         """, (current_username,))
         result = cur.fetchone()
-        
+
         if not result or result[0] != current_password:
             cur.close()
             return jsonify({'success': False, 'message': 'Current password is incorrect'}), 401
-        
+
         cur.execute("""
             UPDATE admin_credentials 
             SET password = %s 
             WHERE username = %s
         """, (new_password, current_username))
         cur.close()
-    
+
     return jsonify({'success': True, 'message': 'Password changed successfully'})
 
 @app.route('/api/telegram-id', methods=['GET'])
 @login_required
 def get_telegram_id():
     current_username = session.get('username')
-    
+
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute("""
@@ -240,9 +239,9 @@ def get_telegram_id():
         """, (current_username,))
         result = cur.fetchone()
         cur.close()
-        
+
         telegram_id = result[0] if result and result[0] else ''
-    
+
     return jsonify({'success': True, 'telegram_user_id': telegram_id})
 
 @app.route('/api/telegram-id', methods=['POST'])
@@ -250,15 +249,15 @@ def get_telegram_id():
 def set_telegram_id():
     data = request.json
     telegram_id = data.get('telegramUserId', '').strip()
-    
+
     if not telegram_id:
         return jsonify({'success': False, 'message': 'Telegram User ID is required'}), 400
-    
+
     if not telegram_id.isdigit():
         return jsonify({'success': False, 'message': 'Telegram User ID must be a number'}), 400
-    
+
     current_username = session.get('username')
-    
+
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute("""
@@ -267,7 +266,7 @@ def set_telegram_id():
             WHERE username = %s
         """, (telegram_id, current_username))
         cur.close()
-    
+
     return jsonify({'success': True, 'message': 'Telegram User ID updated successfully'})
 
 @app.route('/api/stats')
@@ -277,10 +276,10 @@ def get_stats():
         stats = {}
         total_keys = 0
         active_keys = 0
-        
+
         with get_db_connection() as conn:
             cur = conn.cursor()
-            
+
             for platform in PLATFORMS:
                 cur.execute(f"""
                     SELECT 
@@ -291,24 +290,24 @@ def get_stats():
                     FROM {platform}_credentials
                 """)
                 result = cur.fetchone()
-                
+
                 stats[platform] = {
                     'total': result[0] if result else 0,
                     'active': result[1] if result else 0,
                     'claimed': result[2] if result else 0,
                     'inactive': result[3] if result else 0
                 }
-                
+
                 cur.execute(f"SELECT COUNT(*) FROM {platform}_keys")
                 platform_total_keys = cur.fetchone()[0]
                 total_keys += platform_total_keys
-                
+
                 cur.execute(f"SELECT COUNT(*) FROM {platform}_keys WHERE status = 'active'")
                 platform_active_keys = cur.fetchone()[0]
                 active_keys += platform_active_keys
-            
+
             cur.close()
-        
+
         return jsonify({
             'success': True,
             'platforms': PLATFORMS,
@@ -324,7 +323,7 @@ def get_stats():
 def get_credentials(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
-    
+
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute(f"""
@@ -334,7 +333,7 @@ def get_credentials(platform):
         """)
         rows = cur.fetchall()
         cur.close()
-        
+
         credentials = []
         for row in rows:
             credentials.append({
@@ -345,7 +344,7 @@ def get_credentials(platform):
                 'created_at': row[4].isoformat() if row[4] else None,
                 'updated_at': row[5].isoformat() if row[5] else None
             })
-    
+
     return jsonify({'success': True, 'credentials': credentials})
 
 @app.route('/api/credentials/<platform>', methods=['POST'])
@@ -353,17 +352,17 @@ def get_credentials(platform):
 def add_credential(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
-    
+
     data = request.json
     email = data.get('email')
     password = data.get('password')
     status = data.get('status', 'active')
-    
+
     if not email or not password:
         return jsonify({'success': False, 'message': 'Email and password are required'}), 400
-    
+
     platform_title = get_platform_title(platform)
-    
+
     cred_id = db_add_credential(platform_title, email, password, status)
     if cred_id:
         return jsonify({'success': True, 'message': 'Credential added successfully'})
@@ -374,32 +373,32 @@ def add_credential(platform):
 def upload_credentials(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
-    
+
     if 'file' not in request.files:
         return jsonify({'success': False, 'message': 'No file uploaded'}), 400
-    
+
     file = request.files['file']
     if file.filename == '':
         return jsonify({'success': False, 'message': 'No file selected'}), 400
-    
+
     platform_title = get_platform_title(platform)
-    
+
     content = file.read().decode('utf-8')
     lines = content.strip().split('\n')
-    
+
     added_count = 0
     skipped_count = 0
     for line in lines:
         line = line.strip()
         if not line:
             continue
-        
+
         parts = line.split(':')
         if len(parts) >= 2:
             email = parts[0].strip()
             password = parts[1].strip()
             status = parts[2].strip() if len(parts) >= 3 else 'active'
-            
+
             if email and password and '@' in email:
                 cred_id = db_add_credential(platform_title, email, password, status)
                 if cred_id:
@@ -410,11 +409,11 @@ def upload_credentials(platform):
                 skipped_count += 1
         else:
             skipped_count += 1
-    
+
     message = f'Successfully added {added_count} credentials'
     if skipped_count > 0:
         message += f' ({skipped_count} skipped due to invalid format)'
-    
+
     return jsonify({'success': True, 'message': message, 'added': added_count, 'skipped': skipped_count})
 
 @app.route('/api/credentials/<platform>/<int:cred_id>', methods=['DELETE'])
@@ -422,16 +421,16 @@ def upload_credentials(platform):
 def delete_credential(platform, cred_id):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
-    
+
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute(f"DELETE FROM {platform}_credentials WHERE id = %s", (cred_id,))
         deleted = cur.rowcount > 0
         cur.close()
-    
+
     if deleted:
         return jsonify({'success': True, 'message': 'Credential deleted successfully'})
-    
+
     return jsonify({'success': False, 'message': 'Failed to delete credential'}), 500
 
 @app.route('/api/credentials/<platform>/<int:cred_id>', methods=['PUT'])
@@ -439,12 +438,12 @@ def delete_credential(platform, cred_id):
 def edit_credential(platform, cred_id):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
-    
+
     data = request.json
     email = data.get('email')
     password = data.get('password')
     status = data.get('status')
-    
+
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute(f"""
@@ -454,10 +453,10 @@ def edit_credential(platform, cred_id):
         """, (email, password, status, cred_id))
         updated = cur.rowcount > 0
         cur.close()
-    
+
     if updated:
         return jsonify({'success': True, 'message': 'Credential updated successfully'})
-    
+
     return jsonify({'success': False, 'message': 'Failed to update credential'}), 500
 
 @app.route('/api/credentials/<platform>/delete-all', methods=['DELETE'])
@@ -465,12 +464,12 @@ def edit_credential(platform, cred_id):
 def delete_all_credentials(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
-    
+
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute(f"DELETE FROM {platform}_credentials")
         cur.close()
-    
+
     return jsonify({'success': True, 'message': f'All {platform} credentials deleted successfully'})
 
 @app.route('/api/keys/<platform>/delete-all', methods=['DELETE'])
@@ -478,12 +477,12 @@ def delete_all_credentials(platform):
 def delete_all_keys(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
-    
+
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute(f"DELETE FROM {platform}_keys")
         cur.close()
-    
+
     return jsonify({'success': True, 'message': f'All {platform} keys deleted successfully'})
 
 @app.route('/api/keys/<platform>', methods=['GET'])
@@ -491,10 +490,10 @@ def delete_all_keys(platform):
 def get_keys(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
-    
+
     try:
         platform_title = get_platform_title(platform)
-        
+
         with get_db_connection() as conn:
             cur = conn.cursor()
             cur.execute(f"""
@@ -505,7 +504,7 @@ def get_keys(platform):
             """)
             rows = cur.fetchall()
             cur.close()
-            
+
             keys = []
             for row in rows:
                 keys.append({
@@ -520,7 +519,7 @@ def get_keys(platform):
                     'giveaway_generated': row[8] if row[8] else False,
                     'giveaway_winner': row[9] if row[9] else None
                 })
-        
+
         return jsonify({'success': True, 'keys': keys})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e), 'keys': []}), 500
@@ -530,20 +529,20 @@ def get_keys(platform):
 def generate_key(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
-    
+
     data = request.json
     uses = data.get('uses', 1)
     account_text = data.get('account_text', '')[:255]
-    
+
     try:
         uses = int(uses)
         if uses < 1 or uses > 100:
             return jsonify({'success': False, 'message': 'Uses must be between 1 and 100'}), 400
     except ValueError:
         return jsonify({'success': False, 'message': 'Invalid uses value'}), 400
-    
+
     platform_title = get_platform_title(platform)
-    
+
     max_attempts = 5
     for attempt in range(max_attempts):
         key_code = generate_key_code(platform)
@@ -554,7 +553,7 @@ def generate_key(platform):
                 'message': 'Key generated successfully',
                 'key_code': key_code
             })
-    
+
     return jsonify({'success': False, 'message': 'Failed to generate unique key after multiple attempts'}), 500
 
 @app.route('/api/keys/<platform>/<int:key_id>', methods=['DELETE'])
@@ -562,16 +561,16 @@ def generate_key(platform):
 def delete_key(platform, key_id):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
-    
+
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute(f"DELETE FROM {platform}_keys WHERE id = %s", (key_id,))
         deleted = cur.rowcount > 0
         cur.close()
-    
+
     if deleted:
         return jsonify({'success': True, 'message': 'Key deleted successfully'})
-    
+
     return jsonify({'success': False, 'message': 'Failed to delete key'}), 500
 
 @app.route('/api/redemption-history', methods=['GET'])
@@ -595,7 +594,7 @@ def get_redemption_history():
             """)
             redemptions = cur.fetchall()
             cur.close()
-            
+
             history = []
             for r in redemptions:
                 history.append({
@@ -606,7 +605,7 @@ def get_redemption_history():
                     'key_code': r[4],
                     'platform': r[5]
                 })
-            
+
             return jsonify({'success': True, 'history': history})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -617,10 +616,10 @@ def get_claim_history():
     """Get history of all credential claims with user details"""
     try:
         history = []
-        
+
         with get_db_connection() as conn:
             cur = conn.cursor()
-            
+
             for platform in PLATFORMS:
                 cur.execute(f"""
                     SELECT 
@@ -635,7 +634,7 @@ def get_claim_history():
                     LIMIT 100
                 """)
                 claims = cur.fetchall()
-                
+
                 for c in claims:
                     history.append({
                         'user_id': c[0],
@@ -645,7 +644,7 @@ def get_claim_history():
                         'email': c[4],
                         'platform': platform
                 })
-            
+
             return jsonify({'success': True, 'history': history})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500

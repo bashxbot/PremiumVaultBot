@@ -189,6 +189,31 @@ def init_database():
             )
         """)
         
+        # Create indexes for better performance
+        for platform_key, platform_name, emoji in platforms:
+            cur.execute(f"""
+                CREATE INDEX IF NOT EXISTS idx_{platform_key}_creds_status 
+                ON {platform_key}_credentials(status)
+            """)
+            cur.execute(f"""
+                CREATE INDEX IF NOT EXISTS idx_{platform_key}_keys_status 
+                ON {platform_key}_keys(status)
+            """)
+            cur.execute(f"""
+                CREATE INDEX IF NOT EXISTS idx_{platform_key}_keys_code 
+                ON {platform_key}_keys(key_code)
+            """)
+        
+        # Index for redemptions
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_redemptions_platform 
+            ON key_redemptions(platform)
+        """)
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_redemptions_user 
+            ON key_redemptions(user_id)
+        """)
+        
         # Insert default admin if not exists
         default_admin_username = os.getenv('ADMIN_USERNAME', 'admin')
         default_admin_password = os.getenv('ADMIN_PASSWORD', 'changeme')
