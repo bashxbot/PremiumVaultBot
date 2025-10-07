@@ -41,6 +41,8 @@ def run_bot():
         raise ValueError("BOT_TOKEN environment variable is required")
     
     async def start_command(update: Update, context):
+        if not update.effective_user:
+            return
         user_id = update.effective_user.id
         if is_admin(user_id):
             await admin_start(update, context)
@@ -49,6 +51,8 @@ def run_bot():
     
     async def handle_callback_query(update: Update, context):
         query = update.callback_query
+        if not query or not query.data:
+            return
         if query.data.startswith("admin_"):
             await handle_admin_callback(update, context)
         elif query.data.startswith("user_"):
@@ -57,6 +61,8 @@ def run_bot():
             await query.answer("❌ Unknown action!")
     
     async def handle_text_message(update: Update, context):
+        if not update.effective_user:
+            return
         user_id = update.effective_user.id
         if is_admin(user_id):
             await handle_admin_message(update, context)

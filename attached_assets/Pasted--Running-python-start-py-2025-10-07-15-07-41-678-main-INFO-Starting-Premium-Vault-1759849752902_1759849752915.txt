@@ -1,0 +1,32 @@
+==> Running 'python start.py'
+2025-10-07 15:07:41,678 - __main__ - INFO - 🚀 Starting Premium Vault - Bot & Admin Panel
+2025-10-07 15:07:41,878 - __main__ - INFO - 📊 Initializing PostgreSQL database...
+2025-10-07 15:07:42,109 - __main__ - INFO - ✅ Database initialized successfully!
+2025-10-07 15:07:42,112 - __main__ - INFO - 🌐 Admin Panel starting on port 10000 with Gunicorn...
+2025-10-07 15:07:42,112 - __main__ - INFO - ✅ Gunicorn Flask server started
+[2025-10-07 15:07:43 +0000] [56] [INFO] Starting gunicorn 23.0.0
+[2025-10-07 15:07:43 +0000] [56] [INFO] Listening at: http://0.0.0.0:10000 (56)
+[2025-10-07 15:07:43 +0000] [56] [INFO] Using worker: gthread
+[2025-10-07 15:07:43 +0000] [58] [INFO] Booting worker with pid: 58
+[2025-10-07 15:07:43 +0000] [59] [INFO] Booting worker with pid: 59
+127.0.0.1 - - [07/Oct/2025:15:07:44 +0000] "HEAD / HTTP/1.1" 200 0 "-" "Go-http-client/1.1"
+2025-10-07 15:07:49,977 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-07 15:07:49,977 - __main__ - INFO - ✅ Giveaway checker job scheduled (runs every 30 seconds)
+2025-10-07 15:07:49,977 - __main__ - INFO - 🎮 Premium Vault Bot is starting...
+2025-10-07 15:07:50,772 - apscheduler.scheduler - INFO - Added job "check_and_process_giveaways" to job store "default"
+2025-10-07 15:07:50,772 - apscheduler.scheduler - INFO - Scheduler started
+2025-10-07 15:07:50,772 - telegram.ext.Application - INFO - Application started
+2025-10-07 15:07:51,264 - __main__ - ERROR - Exception while handling an update: 'NoneType' object has no attribute 'id'
+2025-10-07 15:07:51,264 - __main__ - ERROR - Exception while handling an update: 'NoneType' object has no attribute 'id'
+==> Your service is live 🎉
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+==> Available at your primary URL https://premiumvaultbot-1.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
+127.0.0.1 - - [07/Oct/2025:15:07:55 +0000] "GET / HTTP/1.1" 200 0 "-" "Go-http-client/2.0"
+2025-10-07 15:07:59,985 - apscheduler.executors.default - INFO - Running job "check_and_process_giveaways (trigger: interval[0:00:30], next run at: 2025-10-07 15:08:29 UTC)" (scheduled at 2025-10-07 15:07:59.975971+00:00)
+2025-10-07 15:07:59,995 - apscheduler.executors.default - INFO - Job "check_and_process_giveaways (trigger: interval[0:00:30], next run at: 2025-10-07 15:08:29 UTC)" executed successfully
+2025-10-07 15:08:29,984 - apscheduler.executors.default - INFO - Running job "check_and_process_giveaways (trigger: interval[0:00:30], next run at: 2025-10-07 15:08:59 UTC)" (scheduled at 2025-10-07 15:08:29.975971+00:00)
+2025-10-07 15:08:29,992 - apscheduler.executors.default - INFO - Job "check_and_process_giveaways (trigger: interval[0:00:30], next run at: 2025-10-07 15:08:59 UTC)" executed successfully
