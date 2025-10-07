@@ -266,6 +266,21 @@ def redeem_key(key_id, user_id, username=None, full_name=None):
         cur.close()
         return True
 
+def delete_keys_by_platform(platform_name):
+    """Delete all keys for a platform"""
+    platform = get_platform_by_name(platform_name)
+    if not platform:
+        return False
+    
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            DELETE FROM keys
+            WHERE platform_id = %s
+        """, (platform['id'],))
+        cur.close()
+        return True
+
 def is_user_banned(user_id, username=None):
     """Check if user is banned"""
     with get_db_connection() as conn:

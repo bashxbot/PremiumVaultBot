@@ -50,6 +50,10 @@ def is_admin(user_id):
 
     return False
 
+def ensure_data_files():
+    """Compatibility function - no longer needed with PostgreSQL"""
+    pass
+
 def generate_key_code(platform):
     """Generate a unique key code"""
     prefix = platform.upper()
