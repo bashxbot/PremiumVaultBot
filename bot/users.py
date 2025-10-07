@@ -496,8 +496,8 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
         cur = conn.cursor()
         cur.execute("""
             SELECT COUNT(*) FROM key_redemptions 
-            WHERE key_id = %s AND user_id = %s
-        """, (key_found['id'], user_id))
+            WHERE key_code = %s AND user_id = %s
+        """, (key_code, user_id))
         if cur.fetchone()[0] > 0:
             cur.close()
             await update.message.reply_text(
@@ -530,8 +530,8 @@ async def redeem_key(update: Update, context: ContextTypes.DEFAULT_TYPE,
     account_text = key_found.get('account_text', 'Premium Account')
 
     # Claim credential and redeem key atomically
-    claim_credential(credential['id'], user_id, username_str, full_name)
-    db_redeem_key(key_found['id'], user_id, username_str, full_name)
+    claim_credential(platform_name, credential['id'], user_id, username_str, full_name)
+    db_redeem_key(platform_name, key_found['id'], user_id, username_str, full_name)
 
     # Prepare success message
     success_text = (

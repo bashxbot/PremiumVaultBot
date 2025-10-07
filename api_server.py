@@ -5,11 +5,12 @@ import os
 from datetime import datetime, timedelta
 from functools import wraps
 import secrets
+import string
 from db_setup import get_db_connection
 from db_helpers import (
     get_platforms, get_platform_by_name, get_credentials_by_platform,
     add_credential as db_add_credential, update_credential as db_update_credential,
-    delete_credential as db_delete_credential, get_keys_by_platform
+    delete_credential as db_delete_credential, get_keys_by_platform, add_key
 )
 
 app = Flask(__name__, static_folder='admin-panel/dist', static_url_path='')
@@ -45,6 +46,16 @@ def get_platform_title(platform):
         'xbox': 'Xbox'
     }
     return platform_map.get(platform.lower(), platform.capitalize())
+
+def generate_key_code(platform):
+    """Generate a unique key code using cryptographically secure random"""
+    prefix = platform.upper()
+    alphabet = string.ascii_uppercase + string.digits
+    parts = [
+        ''.join(secrets.choice(alphabet) for _ in range(4))
+        for _ in range(3)
+    ]
+    return f"{prefix}-{'-'.join(parts)}"
 
 def login_required(f):
     @wraps(f)
@@ -486,6 +497,55 @@ def get_keys(platform):
     platform_keys = get_keys_by_platform(platform_title)
     
     return jsonify({'success': True, 'keys': platform_keys})
+
+@app.route('/api/keys/<platform>', methods=['POST'])
+@login_required
+def generate_key(platform):
+    if platform not in PLATFORMS:
+        return jsonify({'success': False, 'message': 'Invalid platform'}), 400
+    
+    data = request.json
+    uses = data.get('uses', 1)
+    account_text = data.get('account_text', '')[:255]
+    
+    try:
+        uses = int(uses)
+        if uses < 1 or uses > 100:
+            return jsonify({'success': False, 'message': 'Uses must be between 1 and 100'}), 400
+    except ValueError:
+        return jsonify({'success': False, 'message': 'Invalid uses value'}), 400
+    
+    platform_title = get_platform_title(platform)
+    
+    max_attempts = 5
+    for attempt in range(max_attempts):
+        key_code = generate_key_code(platform)
+        key_id = add_key(key_code, platform_title, uses, account_text)
+        if key_id:
+            return jsonify({
+                'success': True, 
+                'message': 'Key generated successfully',
+                'key_code': key_code
+            })
+    
+    return jsonify({'success': False, 'message': 'Failed to generate unique key after multiple attempts'}), 500
+
+@app.route('/api/keys/<platform>/<int:key_id>', methods=['DELETE'])
+@login_required
+def delete_key(platform, key_id):
+    if platform not in PLATFORMS:
+        return jsonify({'success': False, 'message': 'Invalid platform'}), 400
+    
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(f"DELETE FROM {platform}_keys WHERE id = %s", (key_id,))
+        deleted = cur.rowcount > 0
+        cur.close()
+    
+    if deleted:
+        return jsonify({'success': True, 'message': 'Key deleted successfully'})
+    
+    return jsonify({'success': False, 'message': 'Failed to delete key'}), 500
 
 @app.route('/api/redemption-history', methods=['GET'])
 @login_required
