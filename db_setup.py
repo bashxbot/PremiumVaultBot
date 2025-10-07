@@ -18,39 +18,33 @@ def init_db_pool():
     from urllib.parse import urlparse
     parsed = urlparse(database_url)
     
-    # Try to manually resolve to IPv4 first
+    # Resolve hostname to IPv4 address
     import socket
     ipv4_addr = None
     try:
-        # Force IPv4 resolution for Supabase
-        addr_info = socket.getaddrinfo(
+        # Force IPv4 resolution by explicitly requesting AF_INET family
+        result = socket.getaddrinfo(
             parsed.hostname, 
-            parsed.port or 5432, 
+            None,  # Don't need port for resolution
             socket.AF_INET,  # IPv4 only
             socket.SOCK_STREAM
         )
-        if addr_info:
-            ipv4_addr = addr_info[0][4][0]
+        if result:
+            ipv4_addr = result[0][4][0]
             print(f"✓ Resolved {parsed.hostname} to IPv4: {ipv4_addr}")
     except Exception as e:
-        print(f"⚠ Could not resolve to IPv4: {e}")
+        print(f"⚠ IPv4 resolution failed: {e}")
+        # Fall back to using hostname directly
+        ipv4_addr = parsed.hostname
     
-    # Build connection parameters
-    conn_params = {
-        'dbname': parsed.path.lstrip('/'),
-        'user': parsed.username,
-        'password': parsed.password,
-        'host': ipv4_addr if ipv4_addr else parsed.hostname,
-        'port': parsed.port or 5432,
-        'sslmode': 'require',
-        'connect_timeout': 15,
-    }
+    # Build connection string with resolved IP or hostname
+    conn_string = f"postgresql://{parsed.username}:{parsed.password}@{ipv4_addr}:{parsed.port or 5432}{parsed.path}?sslmode=require&connect_timeout=15"
     
     try:
         db_pool = pool.SimpleConnectionPool(
             minconn=1,
             maxconn=10,
-            **conn_params
+            conn_string
         )
         print(f"✓ Database pool initialized successfully")
         return db_pool
