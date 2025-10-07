@@ -14,7 +14,23 @@ def init_db_pool():
     if not database_url:
         raise ValueError("DATABASE_URL environment variable not set")
     
-    # Use the provided connection string as-is (already uses pooler for Supabase)
+    # Fix for Replit IPv6 issues - modify Supabase URL to use transaction pooler
+    # Change db.xxx.supabase.co to aws-0-xx-region.pooler.supabase.com with port 6543
+    if 'supabase.co' in database_url and ':5432' in database_url:
+        # Extract project ref from db.xxx.supabase.co
+        import re
+        match = re.search(r'db\.([^.]+)\.supabase\.co', database_url)
+        if match:
+            project_ref = match.group(1)
+            # Replace with transaction pooler endpoint (works better with IPv4)
+            database_url = database_url.replace(
+                f'db.{project_ref}.supabase.co:5432',
+                f'aws-0-us-east-1.pooler.supabase.com:6543'
+            )
+            # Add sslmode if not present
+            if 'sslmode=' not in database_url:
+                database_url += '?sslmode=require' if '?' not in database_url else '&sslmode=require'
+    
     db_pool = pool.SimpleConnectionPool(
         minconn=1,
         maxconn=10,
