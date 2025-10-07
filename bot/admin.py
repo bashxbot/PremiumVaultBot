@@ -1120,7 +1120,7 @@ async def handle_admin_message(update: Update,
             keys_generated = []
             
             for i in range(count):
-                key_code = generate_key(platform_title)
+                key_code = generate_key_code(platform_title)
                 account_text = active_creds[i]['email']  # Use email as account text
                 add_key(key_code, platform_title, uses=1, account_text=account_text)
                 keys_generated.append(key_code)
