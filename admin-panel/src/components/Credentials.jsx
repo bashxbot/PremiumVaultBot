@@ -11,6 +11,8 @@ function Credentials({ platform, refreshStats }) {
   const [credentials, setCredentials] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
+  const [showClaimerModal, setShowClaimerModal] = useState(false)
+  const [selectedClaimer, setSelectedClaimer] = useState(null)
   const [editIndex, setEditIndex] = useState(null)
   const [formData, setFormData] = useState({ email: '', password: '', status: 'active' })
   const [uploadFile, setUploadFile] = useState(null)
@@ -147,6 +149,28 @@ function Credentials({ platform, refreshStats }) {
     setShowModal(true)
   }
 
+  const openClaimerModal = (cred) => {
+    setSelectedClaimer({
+      name: cred.claimed_by_name || 'N/A',
+      username: cred.claimed_by_username || 'N/A',
+      chatId: cred.claimed_by || 'N/A',
+      claimedAt: cred.claimed_at
+    })
+    setShowClaimerModal(true)
+  }
+
+  const formatClaimedDate = (dateString) => {
+    if (!dateString) return 'N/A'
+    const date = new Date(dateString)
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
   const platformIcons = {
     netflix: SiNetflix,
     crunchyroll: SiCrunchyroll,
@@ -194,6 +218,11 @@ function Credentials({ platform, refreshStats }) {
               </td>
               <td>{cred.created_at ? cred.created_at.slice(0, 19) : 'N/A'}</td>
               <td>
+                {cred.status === 'claimed' && (
+                  <button className="btn btn-sm btn-info" onClick={() => openClaimerModal(cred)} title="View Claimer Details">
+                    <MdAdd style={{ transform: 'rotate(45deg)' }} />
+                  </button>
+                )}
                 <button className="btn btn-sm btn-warning" onClick={() => openEditModal(cred.id, cred)}><MdEdit /></button>
                 <button className="btn btn-sm btn-danger" onClick={() => handleDelete(cred.id)}><MdDelete /></button>
               </td>
@@ -272,6 +301,33 @@ function Credentials({ platform, refreshStats }) {
               </div>
               <button type="submit" className="btn btn-primary">Upload</button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showClaimerModal && selectedClaimer && (
+        <div className="modal" onClick={() => setShowClaimerModal(false)}>
+          <div className="modal-content claimer-modal" onClick={e => e.stopPropagation()}>
+            <span className="close" onClick={() => setShowClaimerModal(false)}>&times;</span>
+            <h2>📋 Claimer Details</h2>
+            <div className="claimer-details">
+              <div className="detail-row">
+                <span className="detail-label">👤 Full Name:</span>
+                <span className="detail-value">{selectedClaimer.name}</span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">🔖 Username:</span>
+                <span className="detail-value">@{selectedClaimer.username}</span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">💬 Chat ID:</span>
+                <span className="detail-value"><code>{selectedClaimer.chatId}</code></span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">🕒 Claimed At:</span>
+                <span className="detail-value">{formatClaimedDate(selectedClaimer.claimedAt)}</span>
+              </div>
+            </div>
           </div>
         </div>
       )}

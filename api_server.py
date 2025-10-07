@@ -327,7 +327,8 @@ def get_credentials(platform):
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute(f"""
-            SELECT id, email, password, status, created_at, updated_at
+            SELECT id, email, password, status, created_at, updated_at,
+                   claimed_by, claimed_by_username, claimed_by_name, claimed_at
             FROM {platform}_credentials
             ORDER BY created_at DESC
         """)
@@ -342,7 +343,11 @@ def get_credentials(platform):
                 'password': row[2],
                 'status': row[3],
                 'created_at': row[4].isoformat() if row[4] else None,
-                'updated_at': row[5].isoformat() if row[5] else None
+                'updated_at': row[5].isoformat() if row[5] else None,
+                'claimed_by': row[6],
+                'claimed_by_username': row[7],
+                'claimed_by_name': row[8],
+                'claimed_at': row[9].isoformat() if row[9] else None
             })
 
     return jsonify({'success': True, 'credentials': credentials})
