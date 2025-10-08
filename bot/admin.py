@@ -5,14 +5,12 @@ import string
 import logging
 from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes
-from telegram.error import TelegramError
-import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from telegram.ext import ContextTypes, ConversationHandler
 from db_helpers import (
     get_platforms, add_key, get_keys_by_platform, get_key_by_code,
     delete_keys_by_platform, is_user_banned as db_is_user_banned,
-    ban_user as db_ban_user, get_db_connection, get_all_admin_telegram_ids
+    ban_user as db_ban_user, get_db_connection, get_all_admin_telegram_ids,
+    unban_user, is_user_banned, get_banned_users
 )
 
 logger = logging.getLogger(__name__)
@@ -32,6 +30,9 @@ if _admin_ids_str:
     ADMIN_IDS.extend([id for id in additional_admins if id not in ADMIN_IDS])
 
 # Available platforms - This is now fetched from the database in db_helpers
+
+# Conversation states for admin menu
+ADD_ADMIN, REMOVE_ADMIN, BAN_USER, UNBAN_USER = range(4)
 
 def get_admin_ids_from_db():
     """Get admin IDs from database"""
@@ -324,7 +325,7 @@ async def handle_admin_callback(update: Update,
 
         with get_db_connection() as conn:
             cur = conn.cursor()
-            
+
             count = 0
             if option == "last":
                 cur.execute(f"SELECT COUNT(*) FROM {platform}_keys ORDER BY created_at DESC LIMIT 1")
@@ -338,7 +339,7 @@ async def handle_admin_callback(update: Update,
             cur.close()
 
         text = f"⚠️ <b>Confirm Revocation</b>\n\nAre you sure you want to revoke {count} key(s) for {platform.capitalize()} ({option})?\n\n📊 This action cannot be undone."
-        
+
         keyboard = [[
             InlineKeyboardButton("✅ Yes, Revoke",
                                  callback_data="admin_revoke_confirm_yes")
@@ -377,8 +378,42 @@ async def handle_admin_callback(update: Update,
             "📝 Example: @username or 123456789",
             parse_mode='HTML')
 
-    elif data == "admin_unban_user":
-        await show_banned_users_list(update, context)
+    elif data == 'unban_user':
+        banned_users = get_banned_users()
+
+        if not banned_users:
+            await query.message.edit_text(
+                "✅ <b>No Banned Users</b>\n\n"
+                "There are currently no banned users.",
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("◀️ Back", callback_data='admin_menu')
+                ]])
+            )
+            return ConversationHandler.END
+
+        # Build banned users list
+        text = "🚫 <b>Banned Users List</b>\n\n"
+        for user in banned_users:
+            user_id = user.get('user_id', 'N/A')
+            username = user.get('username', 'N/A')
+            banned_at = user.get('banned_at', 'N/A')
+
+            text += f"👤 <b>User ID:</b> <code>{user_id}</code>\n"
+            if username and username != 'N/A':
+                text += f"   <b>Username:</b> @{username}\n"
+            text += f"   <b>Banned:</b> {banned_at[:19] if banned_at != 'N/A' else 'N/A'}\n\n"
+
+        text += "\n💬 <b>To unban a user, send their Chat ID or Username (with @)</b>"
+
+        await query.message.edit_text(
+            text,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("❌ Cancel", callback_data='admin_menu')
+            ]])
+        )
+        return UNBAN_USER
 
 
 async def show_bot_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -388,35 +423,35 @@ async def show_bot_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     with get_db_connection() as conn:
         cur = conn.cursor()
-        
+
         total_keys = 0
         active_keys = 0
         used_keys = 0
         expired_keys = 0
         platform_stats = {}
-        
+
         platforms = get_platforms()
         for platform_data in platforms:
             platform = platform_data['name']
             emoji = platform_data['emoji']
-            
+
             cur.execute(f"SELECT COUNT(*) FROM {platform}_keys")
             platform_total = cur.fetchone()[0]
-            
+
             cur.execute(f"SELECT COUNT(*) FROM {platform}_keys WHERE status = 'active'")
             platform_active = cur.fetchone()[0]
-            
+
             cur.execute(f"SELECT COUNT(*) FROM {platform}_keys WHERE status = 'used'")
             platform_used = cur.fetchone()[0]
-            
+
             cur.execute(f"SELECT COUNT(*) FROM {platform}_keys WHERE status = 'expired'")
             platform_expired = cur.fetchone()[0]
-            
+
             total_keys += platform_total
             active_keys += platform_active
             used_keys += platform_used
             expired_keys += platform_expired
-            
+
             if platform_total > 0:
                 platform_stats[platform] = {
                     'emoji': emoji,
@@ -425,23 +460,23 @@ async def show_bot_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     'used': platform_used,
                     'expired': platform_expired
                 }
-        
+
         # Get total users
         cur.execute("SELECT COUNT(*) FROM users")
         total_users = cur.fetchone()[0]
-        
+
         stats_text = ("📊 <b>Bot Statistics</b>\n\n"
                       f"👥 <b>Total Users:</b> {total_users}\n\n"
                       f"🔑 <b>Total Keys:</b> {total_keys}\n"
                       f"✅ <b>Active Keys:</b> {active_keys}\n"
                       f"🎯 <b>Used Keys:</b> {used_keys}\n"
                       f"⏰ <b>Expired Keys:</b> {expired_keys}\n\n")
-        
+
         if platform_stats:
             stats_text += "📱 <b>Platform Breakdown:</b>\n"
             for platform, stats in platform_stats.items():
                 stats_text += f"{stats['emoji']} <b>{platform.capitalize()}:</b> {stats['total']} total, {stats['active']} active, {stats['used']} used, {stats['expired']} expired\n"
-        
+
         cur.close()
 
     keyboard = [[
@@ -531,7 +566,7 @@ async def list_keys_by_platform(update: Update,
 
             if key_data.get('redeemed_at'):
                 text += f"   ⏰ Last Redeemed: {key_data.get('redeemed_at')[:19]}\n"
-            
+
             # Show detailed redeemer info
             if key_data.get('redeemed_by'):
                 text += f"   👥 <b>Redeemers:</b>\n"
@@ -540,7 +575,7 @@ async def list_keys_by_platform(update: Update,
                     username = redeemer.get('username', 'N/A')
                     user_id = redeemer.get('user_id', 'N/A')
                     redeemed_at = redeemer.get('redeemed_at', 'Unknown')[:19] if redeemer.get('redeemed_at') else 'Unknown'
-                    
+
                     username_text = f"@{username}" if username and username != "N/A" else "No username"
                     text += f"      • {name} ({username_text})\n"
                     text += f"        ID: <code>{user_id}</code> | {redeemed_at}\n"
@@ -569,22 +604,22 @@ async def clear_expired_keys(update: Update,
 
     with get_db_connection() as conn:
         cur = conn.cursor()
-        
+
         platforms = get_platforms()
         for platform_data in platforms:
             platform = platform_data['name']
-            
+
             # Count and delete expired keys for each platform
             cur.execute(f"SELECT COUNT(*) FROM {platform}_keys WHERE status = 'expired'")
             platform_expired = cur.fetchone()[0]
             removed_count += platform_expired
-            
+
             cur.execute(f"DELETE FROM {platform}_keys WHERE status = 'expired'")
-            
+
             cur.execute(f"SELECT COUNT(*) FROM {platform}_keys")
             platform_remaining = cur.fetchone()[0]
             remaining_count += platform_remaining
-        
+
         cur.close()
 
     text = ("🗑️ <b>Clear Expired Keys</b>\n\n"
@@ -686,7 +721,7 @@ async def stop_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     with get_db_connection() as conn:
         cur = conn.cursor()
-        
+
         # Get active giveaway
         cur.execute("""
             SELECT g.id, p.name
@@ -696,18 +731,18 @@ async def stop_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
             LIMIT 1
         """)
         result = cur.fetchone()
-        
+
         if not result:
             text = "🛑 <b>Stop Giveaway</b>\n\n❌ No active giveaway found!"
         else:
             giveaway_id, platform = result
-            
+
             # Get participants
             cur.execute("""
                 SELECT user_id FROM giveaway_participants WHERE giveaway_id = %s
             """, (giveaway_id,))
             participants = [row[0] for row in cur.fetchall()]
-            
+
             cancellation_text = (
                 "🚫 <b>Giveaway Cancelled</b>\n\n"
                 f"⚠️ The <b>{platform}</b> giveaway has been cancelled by the administrators.\n\n"
@@ -726,9 +761,9 @@ async def stop_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             # Deactivate giveaway
             cur.execute("UPDATE giveaways SET active = false WHERE id = %s", (giveaway_id,))
-            
+
             text = f"🛑 <b>Giveaway Stopped</b>\n\n✅ The giveaway has been stopped successfully!\n\n📨 Sent cancellation notifications to {len(participants)} participant(s)."
-        
+
         cur.close()
 
     keyboard = [[
@@ -796,7 +831,7 @@ async def revoke_key_options(update: Update,
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     context.user_data['revoke_platform'] = platform
-    
+
     await query.edit_message_text(
         text=f"❌ <b>Revoke {platform.capitalize()} Keys</b>\n\nSelect an option:",
         reply_markup=reply_markup,
@@ -818,11 +853,11 @@ async def revoke_key_execute(update: Update,
 
     with get_db_connection() as conn:
         cur = conn.cursor()
-        
+
         count = 0
         if option == "last":
             cur.execute(f"""
-                DELETE FROM {platform}_keys 
+                DELETE FROM {platform}_keys
                 WHERE id = (SELECT id FROM {platform}_keys ORDER BY created_at DESC LIMIT 1)
             """)
             count = cur.rowcount
@@ -832,7 +867,7 @@ async def revoke_key_execute(update: Update,
         elif option == "claimed":
             cur.execute(f"DELETE FROM {platform}_keys WHERE status = 'used'")
             count = cur.rowcount
-        
+
         cur.close()
 
     text = (f"✅ <b>Keys Revoked</b>\n\n"
@@ -988,10 +1023,10 @@ async def handle_admin_message(update: Update,
 
         image_path = platform_images.get(platform.lower())
         sent_with_image = False
-        
+
         if image_path:
             full_image_path = os.path.join(project_root, image_path)
-            
+
             # Try to send with image
             if os.path.exists(full_image_path):
                 try:
@@ -1003,7 +1038,7 @@ async def handle_admin_message(update: Update,
                         sent_with_image = True
                 except Exception as e:
                     logger.error(f"Failed to send image for {platform}: {e}")
-        
+
         # Fallback to text if image wasn't sent
         if not sent_with_image:
             await update.message.reply_text(caption_text,
@@ -1027,22 +1062,22 @@ async def handle_admin_message(update: Update,
             # Create giveaway in database
             with get_db_connection() as conn:
                 cur = conn.cursor()
-                
+
                 # Deactivate any active giveaways
                 cur.execute("UPDATE giveaways SET active = false WHERE active = true")
-                
+
                 # Get platform ID
                 cur.execute("SELECT id FROM platforms WHERE name ILIKE %s", (platform,))
                 platform_result = cur.fetchone()
                 if platform_result:
                     platform_id = platform_result[0]
-                    
+
                     # Insert new giveaway
                     cur.execute("""
                         INSERT INTO giveaways (platform_id, active, duration, winners, end_time)
                         VALUES (%s, %s, %s, %s, %s)
                     """, (platform_id, True, duration_str, winners, end_time))
-                
+
                 cur.close()
 
             context.user_data.pop('giveaway_step', None)
@@ -1086,12 +1121,12 @@ async def handle_admin_message(update: Update,
 
             # Get platform name
             platform_title = get_platform_display_name(platform)
-            
+
             # Check if platform has active credentials in database
             from db_helpers import get_credentials_by_platform
             credentials = get_credentials_by_platform(platform_title)
             active_creds = [c for c in credentials if c['status'] == 'active']
-            
+
             if not active_creds:
                 keyboard = [[
                     InlineKeyboardButton("🔙 Back to Main",
@@ -1126,14 +1161,14 @@ async def handle_admin_message(update: Update,
 
             # Generate keys - add_key is already imported at top
             keys_generated = []
-            
+
             for i in range(count):
                 key_code = generate_key_code(platform_title)
                 cred = active_creds[i]
                 account_text = f"{cred['email']}:{cred['password']}"  # Store full credentials in account_text
                 add_key(key_code, platform_title, uses=1, account_text=account_text)
                 keys_generated.append(key_code)
-            
+
             keyboard = [[
                 InlineKeyboardButton("🔙 Back to Main",
                                      callback_data="admin_main")
@@ -1141,7 +1176,7 @@ async def handle_admin_message(update: Update,
             reply_markup = InlineKeyboardMarkup(keyboard)
 
             keys_list = "\n".join([f"• <code>{k}</code>" for k in keys_generated])
-            
+
             await update.message.reply_text(
                 f"✅ <b>Keys Generated Successfully!</b>\n\n"
                 f"🎮 <b>Platform:</b> {platform_title}\n"
@@ -1150,10 +1185,10 @@ async def handle_admin_message(update: Update,
                 f"💡 Users can redeem these keys to get accounts!",
                 reply_markup=reply_markup,
                 parse_mode='HTML')
-            
+
             context.user_data.pop('cred_step', None)
             context.user_data.pop('cred_platform', None)
-            
+
         except ValueError:
             keyboard = [[
                 InlineKeyboardButton("🔙 Back to Main",
@@ -1288,7 +1323,7 @@ async def handle_admin_message(update: Update,
     # Handle broadcast
     elif context.user_data.get('broadcast_step') == 'message':
         message = update.message.text
-        
+
         with get_db_connection() as conn:
             cur = conn.cursor()
             cur.execute("SELECT user_id FROM users")
@@ -1420,7 +1455,7 @@ async def check_and_process_giveaways(context: ContextTypes.DEFAULT_TYPE):
     try:
         with get_db_connection() as conn:
             cur = conn.cursor()
-            
+
             # Get active giveaway that has ended
             cur.execute("""
                 SELECT g.id, g.winners, p.name
@@ -1429,7 +1464,7 @@ async def check_and_process_giveaways(context: ContextTypes.DEFAULT_TYPE):
                 WHERE g.active = true AND g.end_time <= NOW()
             """)
             expired_giveaways = cur.fetchall()
-            
+
             if not expired_giveaways:
                 return
 
@@ -1439,17 +1474,17 @@ async def check_and_process_giveaways(context: ContextTypes.DEFAULT_TYPE):
                     SELECT user_id FROM giveaway_participants WHERE giveaway_id = %s
                 """, (giveaway_id,))
                 participants = [row[0] for row in cur.fetchall()]
-                
+
                 # If no participants, just deactivate
                 if not participants:
                     cur.execute("UPDATE giveaways SET active = false WHERE id = %s", (giveaway_id,))
                     logger.info(f"Giveaway {giveaway_id} ({platform}): No participants. Deactivating.")
                     continue
-                
+
                 # Select random winners (don't select more winners than participants)
                 actual_winners_count = min(num_winners, len(participants))
                 winner_ids = random.sample(participants, actual_winners_count)
-                
+
                 logger.info(
                     f"Giveaway {giveaway_id} ({platform}): Selecting {actual_winners_count} winners from {len(participants)} participants."
                 )
@@ -1545,7 +1580,7 @@ def get_platform_display_name(platform):
     result = platform_map.get(platform.lower())
     if result:
         return result
-    
+
     # If not in map, capitalize first letter of each word
     return platform.title()
 
@@ -1556,7 +1591,7 @@ async def show_banned_users_list(update: Update, context: ContextTypes.DEFAULT_T
 
     with get_db_connection() as conn:
         cur = conn.cursor()
-        
+
         # Get banned users with their details
         cur.execute("""
             SELECT bu.user_identifier, u.username, u.user_id
@@ -1572,7 +1607,7 @@ async def show_banned_users_list(update: Update, context: ContextTypes.DEFAULT_T
             InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")
         ]]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        
+
         await query.edit_message_text(
             text="✅ <b>No Banned Users</b>\n\n"
             "There are currently no banned users!",
@@ -1617,11 +1652,78 @@ async def show_banned_users_list(update: Update, context: ContextTypes.DEFAULT_T
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     context.user_data['unban_step'] = 'user_id'
-    
+
     await query.edit_message_text(
         text=text,
         reply_markup=reply_markup,
         parse_mode='HTML')
+
+async def handle_ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle banning a user"""
+    user_input = update.message.text.strip()
+
+    # Check if input is user ID or username
+    if user_input.startswith('@'):
+        username = user_input[1:]
+        user_id = None
+    elif user_input.isdigit():
+        user_id = int(user_input)
+        username = None
+    else:
+        await update.message.reply_text(
+            "❌ Invalid input. Please provide a valid user ID or username (with @).",
+            parse_mode='HTML'
+        )
+        return BAN_USER
+
+    # Ban the user
+    if db_ban_user(user_id, username):
+        await update.message.reply_text(
+            f"✅ <b>User Banned</b>\n\n"
+            f"User {user_input} has been banned successfully.",
+            parse_mode='HTML'
+        )
+    else:
+        await update.message.reply_text(
+            "❌ Failed to ban user. They might already be banned.",
+            parse_mode='HTML'
+        )
+
+    return ConversationHandler.END
+
+async def handle_unban_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle unbanning a user"""
+    user_input = update.message.text.strip()
+
+    # Check if input is user ID or username
+    if user_input.startswith('@'):
+        username = user_input[1:]
+        user_id = None
+    elif user_input.isdigit():
+        user_id = int(user_input)
+        username = None
+    else:
+        await update.message.reply_text(
+            "❌ Invalid input. Please provide a valid user ID or username (with @).",
+            parse_mode='HTML'
+        )
+        return UNBAN_USER
+
+    # Unban the user
+    if unban_user(user_id, username):
+        await update.message.reply_text(
+            f"✅ <b>User Unbanned</b>\n\n"
+            f"User {user_input} has been unbanned successfully.",
+            parse_mode='HTML'
+        )
+    else:
+        await update.message.reply_text(
+            "❌ Failed to unban user. They might not be banned.",
+            parse_mode='HTML'
+        )
+
+    return ConversationHandler.END
+
 
 def parse_duration(duration_str):
     """Parse duration string to seconds"""

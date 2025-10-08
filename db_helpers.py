@@ -328,17 +328,37 @@ def is_user_banned(user_id, username=None):
         cur.close()
         return count > 0
 
-def ban_user(user_identifier):
-    """Ban a user"""
-    with get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO banned_users (user_identifier)
-            VALUES (%s)
-            ON CONFLICT (user_identifier) DO NOTHING
-        """, (user_identifier,))
-        cur.close()
-        return True
+def ban_user(user_id=None, username=None):
+    """Ban a user by ID or username"""
+    conn = get_db_connection()
+    if not conn:
+        return False
+
+    try:
+        cursor = conn.cursor()
+
+        if user_id:
+            cursor.execute("""
+                INSERT INTO banned_users (user_identifier)
+                VALUES (%s)
+                ON CONFLICT (user_identifier) DO NOTHING
+            """, (str(user_id),))
+        elif username:
+            cursor.execute("""
+                INSERT INTO banned_users (user_identifier)
+                VALUES (%s)
+                ON CONFLICT (user_identifier) DO NOTHING
+            """, (f"@{username}",))
+        else:
+            return False
+
+        conn.commit()
+        return cursor.rowcount > 0
+    except Exception as e:
+        print(f"Error banning user: {e}")
+        return False
+    finally:
+        conn.close()
 
 def unban_user(user_identifier):
     """Unban a user"""
@@ -349,6 +369,29 @@ def unban_user(user_identifier):
         """, (user_identifier,))
         cur.close()
         return True
+
+def get_banned_users():
+    """Get all banned users"""
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT user_identifier FROM banned_users
+        """)
+        banned_users_data = cur.fetchall()
+        cur.close()
+
+        banned_users = []
+        for row in banned_users_data:
+            user_identifier = row[0]
+            user_info = {'identifier': user_identifier}
+            if user_identifier.startswith('@'):
+                user_info['username'] = user_identifier[1:]
+                user_info['user_id'] = None
+            else:
+                user_info['user_id'] = int(user_identifier)
+                user_info['username'] = None
+            banned_users.append(user_info)
+        return banned_users
 
 def get_or_create_user(user_id, username=None):
     """Get or create user"""
