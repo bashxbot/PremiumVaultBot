@@ -379,47 +379,64 @@ def upload_credentials(platform):
     if platform not in PLATFORMS:
         return jsonify({'success': False, 'message': 'Invalid platform'}), 400
 
-    if 'file' not in request.files:
-        return jsonify({'success': False, 'message': 'No file uploaded'}), 400
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': 'No file uploaded'}), 400
 
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'success': False, 'message': 'No file selected'}), 400
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': 'No file selected'}), 400
 
-    platform_title = get_platform_title(platform)
+        platform_title = get_platform_title(platform)
 
-    content = file.read().decode('utf-8')
-    lines = content.strip().split('\n')
+        content = file.read().decode('utf-8')
+        lines = content.strip().split('\n')
 
-    added_count = 0
-    skipped_count = 0
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
+        added_count = 0
+        skipped_count = 0
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
 
-        parts = line.split(':')
-        if len(parts) >= 2:
-            email = parts[0].strip()
-            password = parts[1].strip()
-            status = parts[2].strip() if len(parts) >= 3 else 'active'
+            # Split by ':' to get email and password part
+            parts = line.split(':', 1)  # Only split on first ':'
+            if len(parts) >= 2:
+                email = parts[0].strip()
+                # Extract password - get everything before '|' or whitespace+pipe
+                password_part = parts[1].strip()
+                
+                # Remove everything after pipe symbol or extra data
+                if ' |' in password_part:
+                    password = password_part.split(' |')[0].strip()
+                elif '|' in password_part:
+                    password = password_part.split('|')[0].strip()
+                else:
+                    password = password_part.strip()
 
-            if email and password and '@' in email:
-                cred_id = db_add_credential(platform_title, email, password, status)
-                if cred_id:
-                    added_count += 1
+                # Always set status as active
+                status = 'active'
+
+                if email and password and '@' in email:
+                    cred_id = db_add_credential(platform_title, email, password, status)
+                    if cred_id:
+                        added_count += 1
+                    else:
+                        skipped_count += 1
                 else:
                     skipped_count += 1
             else:
                 skipped_count += 1
-        else:
-            skipped_count += 1
 
-    message = f'Successfully added {added_count} credentials'
-    if skipped_count > 0:
-        message += f' ({skipped_count} skipped due to invalid format)'
+        message = f'Successfully added {added_count} credentials'
+        if skipped_count > 0:
+            message += f' ({skipped_count} skipped due to invalid format)'
 
-    return jsonify({'success': True, 'message': message, 'added': added_count, 'skipped': skipped_count})
+        return jsonify({'success': True, 'message': message, 'added': added_count, 'skipped': skipped_count})
+    
+    except Exception as e:
+        logger.error(f"Error uploading credentials: {e}")
+        return jsonify({'success': False, 'message': f'Error uploading credentials: {str(e)}'}), 500
 
 @app.route('/api/credentials/<platform>/<int:cred_id>', methods=['DELETE'])
 @login_required

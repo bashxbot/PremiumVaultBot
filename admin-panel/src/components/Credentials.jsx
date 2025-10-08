@@ -315,7 +315,8 @@ function Credentials({ platform, refreshStats }) {
             <span className="close" onClick={() => setShowUploadModal(false)}>&times;</span>
             <h2>Upload Credentials from File</h2>
             <p className="upload-info">Upload a .txt file with credentials in format:<br />
-              <code>email@email.com:password123:active</code>
+              <code>email@email.com:password123</code><br />
+              <small>Extra data after password (e.g., | info) will be ignored. All credentials set as active.</small>
             </p>
             <form onSubmit={handleUpload}>
               <div className="form-group">
