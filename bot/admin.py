@@ -99,6 +99,7 @@ async def admin_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ],
         [InlineKeyboardButton("📢 Broadcast", callback_data="admin_broadcast")],
         [InlineKeyboardButton("🚫 Ban User", callback_data="admin_ban_user")],
+        [InlineKeyboardButton("✅ Unban User", callback_data="admin_unban_user")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -375,6 +376,9 @@ async def handle_admin_callback(update: Update,
             "Send the user ID or username to ban:\n\n"
             "📝 Example: @username or 123456789",
             parse_mode='HTML')
+
+    elif data == "admin_unban_user":
+        await show_banned_users_list(update, context)
 
 
 async def show_bot_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1364,6 +1368,52 @@ async def handle_admin_message(update: Update,
                                             reply_markup=reply_markup,
                                             parse_mode='HTML')
 
+    # Handle unban user
+    elif context.user_data.get('unban_step') == 'user_id':
+        user_input = update.message.text.strip()
+
+        # Try to extract user ID
+        if user_input.startswith('@'):
+            user_identifier = user_input
+        else:
+            try:
+                user_identifier = str(int(user_input))
+            except ValueError:
+                keyboard = [[
+                    InlineKeyboardButton("🔙 Back to Main",
+                                         callback_data="admin_main")
+                ]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await update.message.reply_text(
+                    "❌ Invalid user ID or username!",
+                    reply_markup=reply_markup,
+                    parse_mode='HTML')
+                return
+
+        if db_is_user_banned(user_identifier):
+            from db_helpers import unban_user as db_unban_user
+            db_unban_user(user_identifier)
+            context.user_data.pop('unban_step', None)
+
+            keyboard = [[
+                InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")
+            ]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            await update.message.reply_text(
+                f"✅ <b>User Unbanned</b>\n\n"
+                f"✅ User {user_input} has been unbanned and can now use the bot!",
+                reply_markup=reply_markup,
+                parse_mode='HTML')
+        else:
+            keyboard = [[
+                InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")
+            ]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text("❌ User is not banned!",
+                                            reply_markup=reply_markup,
+                                            parse_mode='HTML')
+
 
 async def check_and_process_giveaways(context: ContextTypes.DEFAULT_TYPE):
     """Background job to check for expired giveaways and select winners"""
@@ -1498,6 +1548,80 @@ def get_platform_display_name(platform):
     
     # If not in map, capitalize first letter of each word
     return platform.title()
+
+async def show_banned_users_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show list of banned users"""
+    query = update.callback_query
+    await query.answer()
+
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        
+        # Get banned users with their details
+        cur.execute("""
+            SELECT bu.user_identifier, u.username, u.user_id
+            FROM banned_users bu
+            LEFT JOIN users u ON bu.user_identifier = u.user_id OR bu.user_identifier = CONCAT('@', u.username)
+            ORDER BY bu.banned_at DESC
+        """)
+        banned_users = cur.fetchall()
+        cur.close()
+
+    if not banned_users:
+        keyboard = [[
+            InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")
+        ]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            text="✅ <b>No Banned Users</b>\n\n"
+            "There are currently no banned users!",
+            reply_markup=reply_markup,
+            parse_mode='HTML')
+        return
+
+    text = "🚫 <b>Banned Users List</b>\n\n"
+    text += f"📊 <b>Total Banned:</b> {len(banned_users)}\n\n"
+
+    for i, (identifier, username, user_id) in enumerate(banned_users[:20], 1):
+        # Get user details from the users table if available
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            if identifier.startswith('@'):
+                cur.execute("SELECT user_id, username FROM users WHERE username = %s", (identifier[1:],))
+            else:
+                cur.execute("SELECT user_id, username FROM users WHERE user_id = %s", (identifier,))
+            user_info = cur.fetchone()
+            cur.close()
+
+        if user_info:
+            display_id = user_info[0]
+            display_username = f"@{user_info[1]}" if user_info[1] else "No username"
+        else:
+            display_id = identifier if not identifier.startswith('@') else "Unknown"
+            display_username = identifier if identifier.startswith('@') else "No username"
+
+        text += f"{i}. <b>ID:</b> <code>{display_id}</code>\n"
+        text += f"   <b>Username:</b> {display_username}\n\n"
+
+    if len(banned_users) > 20:
+        text += f"\n... and {len(banned_users) - 20} more"
+
+    text += "\n\n📝 <b>To unban a user:</b>\n"
+    text += "Send their Chat ID or username\n"
+    text += "Example: <code>123456789</code> or <code>@username</code>"
+
+    keyboard = [[
+        InlineKeyboardButton("🔙 Back to Main", callback_data="admin_main")
+    ]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    context.user_data['unban_step'] = 'user_id'
+    
+    await query.edit_message_text(
+        text=text,
+        reply_markup=reply_markup,
+        parse_mode='HTML')
 
 def parse_duration(duration_str):
     """Parse duration string to seconds"""

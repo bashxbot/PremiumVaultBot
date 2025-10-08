@@ -340,6 +340,16 @@ def ban_user(user_identifier):
         cur.close()
         return True
 
+def unban_user(user_identifier):
+    """Unban a user"""
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            DELETE FROM banned_users WHERE user_identifier = %s
+        """, (user_identifier,))
+        cur.close()
+        return True
+
 def get_or_create_user(user_id, username=None):
     """Get or create user"""
     with get_db_connection() as conn:
