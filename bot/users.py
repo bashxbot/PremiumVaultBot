@@ -33,8 +33,8 @@ def get_project_root():
 # Required channels
 REQUIRED_CHANNELS = [
     "-1002937378958",  # ACCOUNT VAULT NETWORK - portal
-    "-1002758495265",  # PREMIUMS VAULT - main
-    "-1003084077701",  # PREMIUM VAULT BACKUP - backup
+    "-1003084077701",  # PREMIUMS VAULT - main
+    "-1003189712621",  # PREMIUM VAULT BACKUP - backup
     "-1003039286362"  # PREMIUM VAULT FIGS - config
 ]
 
