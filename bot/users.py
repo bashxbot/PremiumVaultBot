@@ -105,11 +105,11 @@ async def user_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ],
             [
                 InlineKeyboardButton("🔗 Join Channel Main",
-                                     url="https://t.me/+RKjw0ypr_e9lZTI0")
+                                     url="https://t.me/+yiYViAOknS9lZjlk")
             ],
             [
                 InlineKeyboardButton("🔗 Join Channel Backup",
-                                     url="https://t.me/+yiYViAOknS9lZjlk")
+                                     url="https://t.me/+U1X4le07nsFiNjU0")
             ],
             [
                 InlineKeyboardButton("🔗 Join Channel Config",
