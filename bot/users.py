@@ -35,7 +35,8 @@ REQUIRED_CHANNELS = [
     "-1002937378958",  # ACCOUNT VAULT NETWORK - portal
     "-1003084077701",  # PREMIUMS VAULT - main
     "-1003189712621",  # PREMIUM VAULT BACKUP - backup
-    "-1003039286362"  # PREMIUM VAULT FIGS - config
+    "-1003039286362",  # PREMIUM VAULT FIGS - config
+    "-1003492462694"   # QuantXBox - new channel
 ]
 
 
@@ -116,6 +117,10 @@ async def user_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                      url="https://t.me/+gxVbPeU842ZkNmU0")
             ],
             [
+                InlineKeyboardButton("🔗 Join Channel",
+                                     url="https://t.me/QuantXBox")
+            ],
+            [
                 InlineKeyboardButton("✅ I have joined all, continue",
                                      callback_data="user_verify_channels")
             ]
@@ -147,14 +152,19 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         "📢 Channel Portal",
                         url="https://t.me/accountvaultportal"),
                     InlineKeyboardButton("📢 Channel Main",
-                                         url="https://t.me/+RKjw0ypr_e9lZTI0")
+                                         url="https://t.me/+yiYViAOknS9lZjlk")
                 ],
                 [
                     InlineKeyboardButton("📢 Channel Backup",
-                                         url="https://t.me/+yiYViAOknS9lZjlk"),
+                                         url="https://t.me/+U1X4le07nsFiNjU0"),
                     InlineKeyboardButton("📢 Channel Config",
                                          url="https://t.me/+gxVbPeU842ZkNmU0")
-                ], [InlineKeyboardButton("❓ Help", callback_data="user_help")],
+                ],
+                [
+                    InlineKeyboardButton("📢 Join Channel",
+                                         url="https://t.me/QuantXBox")
+                ],
+                [InlineKeyboardButton("❓ Help", callback_data="user_help")],
                 [
                     InlineKeyboardButton("👨‍💻 Developer",
                                          callback_data="user_developer")
