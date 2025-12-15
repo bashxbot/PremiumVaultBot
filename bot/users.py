@@ -33,8 +33,8 @@ def get_project_root():
 # Required channels
 REQUIRED_CHANNELS = [
     "-1002937378958",  # ACCOUNT VAULT NETWORK - portal
-    "-1003084077701",  # PREMIUMS VAULT - main
-    "-1003189712621",  # PREMIUM VAULT BACKUP - backup
+    "-1003358268946",  # PREMIUMS VAULT - main
+    "-1003337807769",  # PREMIUM VAULT BACKUP - backup
     "-1003039286362",  # PREMIUM VAULT FIGS - config
     "-1003492462694"   # QuantXBox - new channel
 ]
@@ -106,11 +106,11 @@ async def user_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ],
             [
                 InlineKeyboardButton("🔗 Join Channel Main",
-                                     url="https://t.me/+yiYViAOknS9lZjlk")
+                                     url="https://t.me/+SrtP1AORSXFmMGU0")
             ],
             [
                 InlineKeyboardButton("🔗 Join Channel Backup",
-                                     url="https://t.me/+U1X4le07nsFiNjU0")
+                                     url="https://t.me/+OOnFkLXQHWk4YzA0")
             ],
             [
                 InlineKeyboardButton("🔗 Join Channel Config",
