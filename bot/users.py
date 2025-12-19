@@ -106,11 +106,11 @@ async def user_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ],
             [
                 InlineKeyboardButton("🔗 Join Channel Main",
-                                     url="https://t.me/+SrtP1AORSXFmMGU0")
+                                     url="https://t.me/+GaP9QSmVo4EyYzM0")
             ],
             [
                 InlineKeyboardButton("🔗 Join Channel Backup",
-                                     url="https://t.me/+OOnFkLXQHWk4YzA0")
+                                     url="https://t.me/+gdJVaBNwwyg5MDc0")
             ],
             [
                 InlineKeyboardButton("🔗 Join Channel Config",
@@ -152,11 +152,11 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         "📢 Channel Portal",
                         url="https://t.me/accountvaultportal"),
                     InlineKeyboardButton("📢 Channel Main",
-                                         url="https://t.me/+yiYViAOknS9lZjlk")
+                                         url="https://t.me/+GaP9QSmVo4EyYzM0")
                 ],
                 [
                     InlineKeyboardButton("📢 Channel Backup",
-                                         url="https://t.me/+U1X4le07nsFiNjU0"),
+                                         url="https://t.me/+gdJVaBNwwyg5MDc0"),
                     InlineKeyboardButton("📢 Channel Config",
                                          url="https://t.me/+gxVbPeU842ZkNmU0")
                 ],
